@@ -1,0 +1,1053 @@
+<!doctype html>
+<html lang="no">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Piano">
+<meta name="theme-color" content="#14161b">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<title>Piano</title>
+<style>
+  :root {
+    --bg: #14161b;
+    --panel: #1d2027;
+    --panel-2: #262a33;
+    --line: #353a45;
+    --text: #eef1f5;
+    --muted: #9aa3b2;
+    --sustain: #f2b134;
+    --sustain-ink: #241800;
+    --transp: #4fb3ff;
+    --transp-ink: #03172a;
+    --ok: #36c96b;
+    --warn: #f2c94c;
+    --bad: #ff5555;
+    --white-key: #f7f7f5;
+    --white-key-2: #e6e6e2;
+    --white-down: #bcd6f2;
+    --black-key: #24262b;
+    --black-key-2: #0c0d10;
+    --black-down: #3d6694;
+  }
+  * {
+    box-sizing: border-box;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+  #app {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+
+  /* ---------- Kontrollstripe ---------- */
+  #strip {
+    flex: 0 0 auto;
+    width: clamp(54px, 8.5vw, 86px);
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 5px;
+    touch-action: none;
+  }
+  .ctl {
+    flex: 2 1 0;
+    min-height: 0;
+    width: 100%;
+    border: 0;
+    border-radius: 9px;
+    background: var(--panel-2);
+    color: var(--text);
+    font: 600 clamp(10px, 1.5vw, 15px)/1.1 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 2px;
+    touch-action: none;
+    cursor: pointer;
+    overflow: hidden;
+  }
+  .ctl .big { font-size: 1.45em; font-weight: 700; line-height: 1; }
+  .ctl .small { font-size: 0.82em; opacity: 0.8; }
+  #btnSustain.on { background: var(--sustain); color: var(--sustain-ink); }
+  #btnTransp.on { background: var(--transp); color: var(--transp-ink); }
+  .row { flex: 1.3 1 0; min-height: 0; display: flex; gap: 5px; }
+  .row .ctl { flex: 1 1 0; font-size: clamp(14px, 2.2vw, 20px); }
+  #lamp .dot {
+    width: 42%;
+    max-width: 18px;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: #555b66;
+    box-shadow: 0 0 0 2px rgba(255,255,255,0.08);
+  }
+  #lamp.ok .dot { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+  #lamp.loading .dot { background: var(--warn); box-shadow: 0 0 8px var(--warn); }
+  #lamp.bad { background: var(--bad); }
+  #lamp.bad .dot { background: #fff; box-shadow: 0 0 8px #fff; }
+
+  /* ---------- Tangenter ---------- */
+  #kb {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 0;
+    touch-action: none;
+    overflow: hidden;
+    margin: 5px 5px 5px 0;
+    border-radius: 4px;
+    background: #000;
+  }
+  .wk, .bk { position: absolute; top: 0; pointer-events: none; }
+  .wk {
+    bottom: 0;
+    background: linear-gradient(180deg, var(--white-key) 0%, var(--white-key) 82%, var(--white-key-2) 100%);
+    border-left: 1px solid #2b2b2b;
+    border-radius: 0 0 5px 5px;
+  }
+  .wk:first-child { border-left: 0; }
+  .wk.down { background: linear-gradient(180deg, var(--white-down) 0%, #a9c8ea 100%); }
+  .bk {
+    z-index: 2;
+    background: linear-gradient(180deg, var(--black-key) 0%, var(--black-key-2) 100%);
+    border-radius: 0 0 4px 4px;
+    box-shadow: 0 2px 3px rgba(0,0,0,0.5), inset 0 -3px 0 rgba(255,255,255,0.06);
+  }
+  .bk.down { background: linear-gradient(180deg, var(--black-down) 0%, #274566 100%); }
+  .lbl {
+    position: absolute;
+    left: 0; right: 0; bottom: 6px;
+    text-align: center;
+    font-size: clamp(9px, 1.3vw, 13px);
+    font-weight: 600;
+    color: #8a8f98;
+  }
+
+  /* ---------- Startskjerm ---------- */
+  #start {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(12, 13, 17, 0.92);
+    touch-action: none;
+    cursor: pointer;
+  }
+  #start .box { text-align: center; padding: 16px; }
+  #start .play {
+    width: clamp(56px, 12vmin, 96px);
+    aspect-ratio: 1;
+    margin: 0 auto 10px;
+    border-radius: 50%;
+    background: var(--ok);
+    display: flex; align-items: center; justify-content: center;
+  }
+  #start .play::after {
+    content: "";
+    margin-left: 12%;
+    border-style: solid;
+    border-width: 0.9em 0 0.9em 1.5em;
+    border-color: transparent transparent transparent #0b2614;
+    font-size: clamp(12px, 2.6vmin, 20px);
+  }
+  #start .t1 { font-size: clamp(16px, 3.4vmin, 26px); font-weight: 700; }
+  #start .t2 { font-size: clamp(12px, 2.2vmin, 16px); color: var(--muted); margin-top: 4px; }
+
+  /* ---------- Innstillinger ---------- */
+  #settings {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    background: var(--bg);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    overscroll-behavior: contain;
+  }
+  #settings[hidden] { display: none; }
+  .sbar {
+    position: sticky; top: 0;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px;
+    padding: 10px 14px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    z-index: 1;
+  }
+  .sbar h1 { margin: 0; font-size: 17px; }
+  .sbody {
+    padding: 12px 14px 28px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px;
+  }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+  .card h2 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  .field { display: grid; gap: 5px; margin-bottom: 12px; }
+  .field:last-child { margin-bottom: 0; }
+  .field label { font-size: 14px; display: flex; justify-content: space-between; gap: 8px; }
+  .field label output { color: var(--muted); font-variant-numeric: tabular-nums; }
+  select, .btn {
+    font: inherit;
+    font-size: 16px;
+    color: var(--text);
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    padding: 9px 10px;
+    width: 100%;
+  }
+  .btn { cursor: pointer; font-weight: 600; touch-action: manipulation; }
+  .btn.primary { background: var(--ok); color: #06210f; border-color: transparent; }
+  .btn.slim { width: auto; padding: 7px 14px; }
+  input[type=range] { width: 100%; accent-color: var(--transp); height: 30px; touch-action: pan-x; }
+  .hint { font-size: 12.5px; color: var(--muted); line-height: 1.4; margin: 0; }
+  dl.status { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; font-size: 13px; }
+  dl.status dt { color: var(--muted); }
+  dl.status dd { margin: 0; font-variant-numeric: tabular-nums; word-break: break-word; }
+  .credit { font-size: 12px; color: var(--muted); line-height: 1.45; }
+  .credit a { color: var(--transp); }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="strip">
+    <button id="btnSustain" class="ctl" aria-pressed="false"><span class="big">S</span><span class="small">Sustain</span></button>
+    <button id="btnTransp" class="ctl" aria-pressed="false"><span class="big" id="transpLabel">+4</span><span class="small">Transp.</span></button>
+    <div class="row">
+      <button id="btnSettings" class="ctl" aria-label="Innstillinger">⚙</button>
+      <button id="lamp" class="ctl" aria-label="Lydstatus"><span class="dot"></span></button>
+    </div>
+  </div>
+  <div id="kb" aria-label="Pianotangenter"></div>
+</div>
+
+<div id="start" role="button" aria-label="Start pianoet">
+  <div class="box">
+    <div class="play"></div>
+    <div class="t1">Trykk for å starte pianoet</div>
+    <div class="t2" id="startHint">Laster lyd …</div>
+  </div>
+</div>
+
+<div id="settings" hidden>
+  <div class="sbar">
+    <h1>Innstillinger</h1>
+    <button class="btn slim primary" id="btnClose">Ferdig</button>
+  </div>
+  <div class="sbody">
+    <section class="card">
+      <h2>Tangenter</h2>
+      <div class="field">
+        <label for="selLo">Laveste tone</label>
+        <select id="selLo"></select>
+      </div>
+      <div class="field">
+        <label for="selHi">Høyeste tone</label>
+        <select id="selHi"></select>
+      </div>
+      <p class="hint" id="rangeInfo"></p>
+    </section>
+
+    <section class="card">
+      <h2>Transponering</h2>
+      <div class="field">
+        <label for="selTransp">Antall halvtoner (brukes når Transp.-knappen er på)</label>
+        <select id="selTransp"></select>
+      </div>
+      <p class="hint">Tangentene ser like ut. Bare lyden flyttes.</p>
+    </section>
+
+    <section class="card">
+      <h2>Lyd</h2>
+      <div class="field">
+        <label for="rngVol">Volum <output id="outVol"></output></label>
+        <input type="range" id="rngVol" min="0" max="100" step="1">
+      </div>
+      <div class="field">
+        <label for="rngRev">Romklang (reverb) <output id="outRev"></output></label>
+        <input type="range" id="rngRev" min="0" max="100" step="1">
+      </div>
+      <div class="field">
+        <button class="btn" id="btnRestart">Start lyd på nytt</button>
+        <p class="hint">Bruk denne, eller trykk på lampen, hvis lyden har forsvunnet.</p>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Teknisk status (testversjon)</h2>
+      <dl class="status" id="statusList"></dl>
+    </section>
+
+    <section class="card credit">
+      Pianolyd: <a href="https://github.com/sfzinstruments/SalamanderGrandPiano" target="_blank" rel="noopener">Salamander Grand Piano V3</a>
+      av Alexander Holm, lisensiert under
+      <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener">CC BY 3.0</a>.
+      Lydfilene er trimmet og konvertert til MP3.
+    </section>
+  </div>
+</div>
+
+<noscript>Pianoet krever JavaScript.</noscript>
+
+<script>
+(() => {
+  'use strict';
+
+  const VERSION = '0.1 (test)';
+  const STORE_KEY = 'piano.settings.v1';
+
+  // ---------- Noter og navn ----------
+  const MIDI_MIN = 21;   // A0
+  const MIDI_MAX = 108;  // C8
+  const WHITE_PCS = [0, 2, 4, 5, 7, 9, 11];
+  const WHITE_LETTER = { 0: 'C', 2: 'D', 4: 'E', 5: 'F', 7: 'G', 9: 'A', 11: 'H' };
+  const PC_NAME_NO = ['C', 'Ciss', 'D', 'Ess', 'E', 'F', 'Fiss', 'G', 'Ass', 'A', 'B', 'H'];
+  const pc = (m) => ((m % 12) + 12) % 12;
+  const octave = (m) => Math.floor(m / 12) - 1;
+  const isWhite = (m) => WHITE_PCS.includes(pc(m));
+  const whiteName = (m) => WHITE_LETTER[pc(m)] + octave(m);
+
+  // Lydprøver: hver liten terts fra A0 til C8 (30 filer)
+  const SAMPLE_MIDIS = [];
+  for (let m = MIDI_MIN; m <= MIDI_MAX; m += 3) SAMPLE_MIDIS.push(m);
+  const SAMPLE_FILE_NAME = { 0: 'C', 3: 'Ds', 6: 'Fs', 9: 'A' };
+  const sampleUrl = (m) => 'samples/' + SAMPLE_FILE_NAME[pc(m)] + octave(m) + '.mp3';
+  const nearestSample = (n) => {
+    const c = Math.min(MIDI_MAX, Math.max(MIDI_MIN, n));
+    return Math.min(MIDI_MAX, MIDI_MIN + 3 * Math.round((c - MIDI_MIN) / 3));
+  };
+
+  // ---------- Innstillinger ----------
+  const DEFAULTS = { lo: 60, hi: 84, tAmt: 4, tOn: false, vol: 75, rev: 0 };
+  const clampInt = (v, a, b, d) => {
+    v = Math.round(Number(v));
+    return Number.isFinite(v) ? Math.min(b, Math.max(a, v)) : d;
+  };
+  function sanitize(s) {
+    const o = {};
+    o.lo = clampInt(s.lo, MIDI_MIN, MIDI_MAX, DEFAULTS.lo);
+    o.hi = clampInt(s.hi, MIDI_MIN, MIDI_MAX, DEFAULTS.hi);
+    if (!isWhite(o.lo)) o.lo = DEFAULTS.lo;
+    if (!isWhite(o.hi)) o.hi = DEFAULTS.hi;
+    if (o.hi <= o.lo) { o.lo = DEFAULTS.lo; o.hi = DEFAULTS.hi; }
+    o.tAmt = clampInt(s.tAmt, -12, 12, DEFAULTS.tAmt);
+    o.tOn = s.tOn === true;
+    o.vol = clampInt(s.vol, 0, 100, DEFAULTS.vol);
+    o.rev = clampInt(s.rev, 0, 100, DEFAULTS.rev);
+    return o;
+  }
+  function loadSettings() {
+    try {
+      const raw = localStorage.getItem(STORE_KEY);
+      return sanitize(Object.assign({}, DEFAULTS, raw ? JSON.parse(raw) : {}));
+    } catch (e) {
+      return Object.assign({}, DEFAULTS);
+    }
+  }
+  function saveSettings() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) { /* privat modus o.l. */ }
+  }
+  const S = loadSettings();
+  let sustainOn = false; // starter alltid av
+
+  // ---------- Lydmotor ----------
+  const VOICE_GAIN = 0.5;
+  const RELEASE_TAU = 0.09;   // demping når tangenten slippes (ca. 0,6 s)
+  const RESTRIKE_TAU = 0.035; // samme tone slås an igjen
+  const MAX_VOICES = 48;
+
+  const A = {
+    ctx: null, bus: null, dry: null, wet: null, conv: null, convConnected: false, vol: null, lim: null,
+    bytes: new Map(),     // midi -> ArrayBuffer (kodet MP3, beholdes for ev. ny dekoding)
+    fetching: new Map(),  // midi -> Promise<ArrayBuffer>
+    buffers: new Map(),   // midi -> { buf, offset }
+    decoding: new Set(),
+    failed: new Set(),
+    voices: [],
+    lastTime: -1, stallCount: 0, stalled: false,
+    restarts: 0, lastError: '',
+  };
+
+  function setAudioSession() {
+    try {
+      if (navigator.audioSession) navigator.audioSession.type = 'ambient';
+    } catch (e) { /* ikke støttet */ }
+  }
+  setAudioSession();
+
+  function createContext() {
+    setAudioSession();
+    const AC = window.AudioContext || window.webkitAudioContext;
+    let ctx;
+    try { ctx = new AC({ latencyHint: 'interactive' }); } catch (e) { ctx = new AC(); }
+    const bus = ctx.createGain();
+    const dry = ctx.createGain();
+    const wet = ctx.createGain();
+    wet.gain.value = 0;
+    const vol = ctx.createGain();
+    const lim = ctx.createDynamicsCompressor();
+    lim.threshold.value = -3;
+    lim.knee.value = 0;
+    lim.ratio.value = 20;
+    lim.attack.value = 0.002;
+    lim.release.value = 0.2;
+    bus.connect(dry);
+    dry.connect(vol);
+    wet.connect(vol);
+    vol.connect(lim);
+    lim.connect(ctx.destination);
+    ctx.onstatechange = () => updateStatus();
+    Object.assign(A, { ctx, bus, dry, wet, vol, lim, conv: null, convConnected: false, voices: [] });
+    A.lastTime = -1; A.stallCount = 0; A.stalled = false;
+    applyVolume(true);
+    applyReverb(true);
+    return ctx;
+  }
+
+  function unlock() {
+    const ctx = A.ctx;
+    if (!ctx) return;
+    try {
+      const b = ctx.createBuffer(1, 1, ctx.sampleRate);
+      const s = ctx.createBufferSource();
+      s.buffer = b;
+      s.connect(ctx.destination);
+      s.start(0);
+    } catch (e) { /* ignorer */ }
+    tryResume();
+  }
+
+  function tryResume() {
+    const ctx = A.ctx;
+    if (!ctx || ctx.state === 'running' || ctx.state === 'closed') return;
+    try {
+      const p = ctx.resume();
+      if (p && p.catch) p.catch(() => {});
+    } catch (e) { /* ignorer */ }
+  }
+
+  function restartAudio() {
+    releaseAllTouches();
+    const old = A.ctx;
+    for (const v of A.voices) { try { v.src.stop(); } catch (e) {} }
+    A.voices = [];
+    try { if (old && old.state !== 'closed') old.close(); } catch (e) {}
+    createContext();
+    unlock();
+    A.restarts++;
+    ensureSamples();
+    requestWakeLock();
+    updateStatus();
+  }
+
+  function volumeGain(v) { return 1.6 * Math.pow(v / 100, 2); }
+  function applyVolume(instant) {
+    if (!A.vol) return;
+    const g = volumeGain(S.vol);
+    if (instant) A.vol.gain.value = g;
+    else A.vol.gain.setTargetAtTime(g, A.ctx.currentTime, 0.03);
+  }
+
+  function makeImpulse(ctx) {
+    // Enkel, mørk romklang (ca. 2,6 s), generert lokalt
+    const rate = ctx.sampleRate;
+    const seconds = 2.6;
+    const len = Math.floor(rate * seconds);
+    const pre = Math.floor(rate * 0.012);
+    const ir = ctx.createBuffer(2, len, rate);
+    let seed = 12345;
+    const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296 * 2 - 1; };
+    for (let ch = 0; ch < 2; ch++) {
+      const d = ir.getChannelData(ch);
+      let lp = 0;
+      for (let i = pre; i < len; i++) {
+        const t = (i - pre) / (len - pre);
+        const c = 0.85 - 0.7 * t;                // mørkere hale over tid
+        lp += c * (rnd() - lp);
+        const env = Math.exp(-t * 5.5) * Math.min(1, (i - pre) / (rate * 0.006));
+        d[i] = lp * env;
+      }
+    }
+    return ir;
+  }
+  function applyReverb(instant) {
+    if (!A.ctx) return;
+    const r = S.rev / 100;
+    const now = A.ctx.currentTime;
+    const wetG = 0.9 * Math.pow(r, 1.3);
+    const dryG = 1 - 0.25 * r;
+    if (r > 0) {
+      if (!A.conv) {
+        A.conv = A.ctx.createConvolver();
+        A.conv.buffer = makeImpulse(A.ctx);
+        A.conv.connect(A.wet);
+      }
+      if (!A.convConnected) { A.bus.connect(A.conv); A.convConnected = true; }
+    } else if (A.convConnected) {
+      // Kobles fra når romklang er 0, så den ikke bruker kraft
+      try { A.bus.disconnect(A.conv); } catch (e) {}
+      A.convConnected = false;
+    }
+    if (instant) { A.wet.gain.value = wetG; A.dry.gain.value = dryG; }
+    else {
+      A.wet.gain.setTargetAtTime(wetG, now, 0.05);
+      A.dry.gain.setTargetAtTime(dryG, now, 0.05);
+    }
+  }
+
+  // --- Lasting av lydprøver ---
+  function neededSamples() {
+    const t = S.tAmt;
+    const lo = Math.min(S.lo, S.lo + t);
+    const hi = Math.max(S.hi, S.hi + t);
+    const set = new Set();
+    for (let n = lo; n <= hi; n++) set.add(nearestSample(n));
+    return [...set].sort((a, b) => a - b);
+  }
+  function fetchBytes(m) {
+    if (A.bytes.has(m)) return Promise.resolve(A.bytes.get(m));
+    if (A.fetching.has(m)) return A.fetching.get(m);
+    const p = fetch(sampleUrl(m))
+      .then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
+      .then((ab) => { A.bytes.set(m, ab); return ab; })
+      .finally(() => A.fetching.delete(m));
+    A.fetching.set(m, p);
+    return p;
+  }
+  function decode(ctx, ab) {
+    return new Promise((resolve, reject) => {
+      try {
+        const p = ctx.decodeAudioData(ab, resolve, reject);
+        if (p && p.then) p.then(resolve, reject);
+      } catch (e) { reject(e); }
+    });
+  }
+  function findOnset(buf) {
+    // Finn første hørbare punkt (fjerner stillhet foran tonen og MP3-forsinkelse)
+    const th = 0.002;
+    const rate = buf.sampleRate;
+    const lim = Math.min(buf.length, Math.floor(rate * 0.3));
+    const chans = [];
+    for (let c = 0; c < buf.numberOfChannels; c++) chans.push(buf.getChannelData(c));
+    for (let i = 0; i < lim; i++) {
+      for (const d of chans) {
+        if (Math.abs(d[i]) > th) return Math.max(0, i - Math.round(rate * 0.001)) / rate;
+      }
+    }
+    return 0;
+  }
+  function prefetch() {
+    for (const m of neededSamples()) fetchBytes(m).catch(() => {});
+  }
+  function ensureSamples() {
+    const ctx = A.ctx;
+    if (!ctx) { prefetch(); return; }
+    for (const m of neededSamples()) {
+      if (A.buffers.has(m) || A.decoding.has(m)) continue;
+      A.decoding.add(m);
+      A.failed.delete(m);
+      fetchBytes(m)
+        .then((ab) => decode(ctx, ab.slice(0)))
+        .then((buf) => { A.buffers.set(m, { buf, offset: findOnset(buf) }); })
+        .catch((e) => { A.failed.add(m); A.lastError = 'Lyd ' + sampleUrl(m) + ': ' + (e && e.message ? e.message : e); })
+        .finally(() => { A.decoding.delete(m); updateStatus(); });
+    }
+    updateStatus();
+  }
+  function pickSample(n) {
+    const ideal = nearestSample(n);
+    if (A.buffers.has(ideal)) return ideal;
+    let best = null, bestD = 13;
+    for (const m of A.buffers.keys()) {
+      const d = Math.abs(m - n);
+      if (d < bestD) { best = m; bestD = d; }
+    }
+    return best;
+  }
+
+  // --- Toner ---
+  function noteOn(note) {
+    const ctx = A.ctx;
+    if (!ctx) return null;
+    if (ctx.state !== 'running') tryResume();
+    const sm = pickSample(note);
+    if (sm === null) return null;
+    const { buf, offset } = A.buffers.get(sm);
+    const now = ctx.currentTime;
+
+    // Samme tone slås an på nytt: demp den forrige raskt (som på et ekte piano)
+    for (const v of A.voices) {
+      if (v.note === note && !v.released) releaseVoice(v, now, RESTRIKE_TAU);
+    }
+    // Stemmetak: slipp de eldste
+    let active = A.voices.filter((v) => !v.released);
+    while (active.length >= MAX_VOICES) {
+      const victim = active.find((v) => !v.held) || active[0];
+      releaseVoice(victim, now, 0.02);
+      active = A.voices.filter((v) => !v.released);
+    }
+
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.playbackRate.value = Math.pow(2, (note - sm) / 12);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, now);
+    g.gain.linearRampToValueAtTime(VOICE_GAIN, now + 0.002);
+    src.connect(g);
+    g.connect(A.bus);
+    const v = { src, g, note, held: true, released: false, ctx };
+    src.onended = () => {
+      try { g.disconnect(); } catch (e) {}
+      const i = A.voices.indexOf(v);
+      if (i >= 0) A.voices.splice(i, 1);
+    };
+    src.start(now, Math.min(offset, buf.duration - 0.01));
+    A.voices.push(v);
+    return v;
+  }
+  function releaseVoice(v, now, tau) {
+    if (!v || v.released) return;
+    v.released = true;
+    if (v.ctx !== A.ctx) { try { v.src.stop(); } catch (e) {} return; }
+    const p = v.g.gain;
+    try {
+      const cur = p.value;
+      p.cancelScheduledValues(now);
+      p.setValueAtTime(cur, now);
+      p.setTargetAtTime(0, now, tau);
+      v.src.stop(now + tau * 9);
+    } catch (e) {
+      try { v.src.stop(); } catch (e2) {}
+    }
+  }
+  function noteOff(v) {
+    if (!v) return;
+    v.held = false;
+    if (sustainOn) return;
+    releaseVoice(v, A.ctx ? A.ctx.currentTime : 0, RELEASE_TAU);
+  }
+  function setSustain(on) {
+    sustainOn = on;
+    btnSustain.classList.toggle('on', on);
+    btnSustain.setAttribute('aria-pressed', String(on));
+    if (!on && A.ctx) {
+      const now = A.ctx.currentTime;
+      for (const v of A.voices) if (!v.held && !v.released) releaseVoice(v, now, RELEASE_TAU);
+    }
+  }
+
+  // ---------- Tangentbord (tegning og treff) ----------
+  const kb = document.getElementById('kb');
+  const btnSustain = document.getElementById('btnSustain');
+  const btnTransp = document.getElementById('btnTransp');
+  const transpLabel = document.getElementById('transpLabel');
+  const btnSettings = document.getElementById('btnSettings');
+  const lamp = document.getElementById('lamp');
+
+  let keys = [];         // { midi, white, x, w, el }
+  let whiteW = 0, blackH = 0;
+  const BLACK_SHIFT = { 1: -0.08, 3: 0.08, 6: -0.1, 8: 0, 10: 0.1 };
+
+  function layoutKeys() {
+    const rect = kb.getBoundingClientRect();
+    const W = rect.width, H = rect.height;
+    kb.textContent = '';
+    keys = [];
+    const whites = [];
+    for (let m = S.lo; m <= S.hi; m++) if (isWhite(m)) whites.push(m);
+    whiteW = W / whites.length;
+    blackH = H * 0.62;
+    const bw = whiteW * 0.6;
+    const frag = document.createDocumentFragment();
+    const downSet = new Set(keyDownCount.keys());
+    whites.forEach((m, i) => {
+      const el = document.createElement('div');
+      el.className = 'wk' + (downSet.has(m) ? ' down' : '');
+      el.style.left = (i * whiteW) + 'px';
+      el.style.width = whiteW + 'px';
+      if (pc(m) === 0 && whiteW >= 18) {
+        const l = document.createElement('div');
+        l.className = 'lbl';
+        l.textContent = whiteName(m);
+        el.appendChild(l);
+      }
+      frag.appendChild(el);
+      keys.push({ midi: m, white: true, x: i * whiteW, w: whiteW, el });
+    });
+    for (let m = S.lo + 1; m < S.hi; m++) {
+      if (isWhite(m)) continue;
+      const leftWhiteIdx = whites.indexOf(m - 1);
+      if (leftWhiteIdx < 0) continue;
+      const boundary = (leftWhiteIdx + 1) * whiteW;
+      const x = boundary - bw / 2 + (BLACK_SHIFT[pc(m)] || 0) * whiteW;
+      const el = document.createElement('div');
+      el.className = 'bk' + (downSet.has(m) ? ' down' : '');
+      el.style.left = x + 'px';
+      el.style.width = bw + 'px';
+      el.style.height = blackH + 'px';
+      frag.appendChild(el);
+      keys.push({ midi: m, white: false, x, w: bw, el });
+    }
+    kb.appendChild(frag);
+  }
+
+  function hitTest(clientX, clientY) {
+    const r = kb.getBoundingClientRect();
+    const x = clientX - r.left, y = clientY - r.top;
+    if (x < 0 || y < 0 || x > r.width || y > r.height) return null;
+    if (y <= blackH) {
+      for (const k of keys) if (!k.white && x >= k.x && x <= k.x + k.w) return k;
+    }
+    const idx = Math.min(Math.floor(x / whiteW), keys.filter((k) => k.white).length - 1);
+    let n = 0;
+    for (const k of keys) { if (k.white) { if (n === idx) return k; n++; } }
+    return null;
+  }
+
+  // ---------- Berøring ----------
+  const touches = new Map();      // id -> { key, voice }
+  const keyDownCount = new Map(); // midi -> antall fingre
+  function markKey(k, delta) {
+    const c = (keyDownCount.get(k.midi) || 0) + delta;
+    if (c <= 0) keyDownCount.delete(k.midi); else keyDownCount.set(k.midi, c);
+    const el = keys.find((x) => x.midi === k.midi);
+    if (el) el.el.classList.toggle('down', c > 0);
+  }
+  function press(id, k) {
+    if (touches.has(id)) release(id);
+    const note = k.midi + (S.tOn ? S.tAmt : 0);
+    const voice = noteOn(note);
+    touches.set(id, { key: k, voice });
+    markKey(k, +1);
+  }
+  function release(id) {
+    const t = touches.get(id);
+    if (!t) return;
+    touches.delete(id);
+    noteOff(t.voice);
+    markKey(t.key, -1);
+  }
+  function releaseAllTouches() {
+    for (const id of [...touches.keys()]) release(id);
+  }
+  function reconcile(list) {
+    // Slipp fingre som iOS har "glemt" å melde fra om
+    const live = new Set();
+    for (const t of list) live.add('t' + t.identifier);
+    for (const id of [...touches.keys()]) if (id.startsWith('t') && !live.has(id)) release(id);
+  }
+
+  kb.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    reconcile(e.touches);
+    for (const t of e.changedTouches) {
+      const k = hitTest(t.clientX, t.clientY);
+      if (k) press('t' + t.identifier, k);
+    }
+  }, { passive: false });
+  kb.addEventListener('touchmove', (e) => { e.preventDefault(); }, { passive: false });
+  const touchEnd = (e) => {
+    e.preventDefault();
+    for (const t of e.changedTouches) release('t' + t.identifier);
+    reconcile(e.touches);
+    if (A.ctx && A.ctx.state !== 'running') tryResume();
+  };
+  kb.addEventListener('touchend', touchEnd, { passive: false });
+  kb.addEventListener('touchcancel', touchEnd, { passive: false });
+
+  // Mus/penn (for testing på datamaskin)
+  kb.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'touch') return;
+    e.preventDefault();
+    const k = hitTest(e.clientX, e.clientY);
+    if (k) press('p' + e.pointerId, k);
+  });
+  const pointerEnd = (e) => { if (e.pointerType !== 'touch') release('p' + e.pointerId); };
+  window.addEventListener('pointerup', pointerEnd);
+  window.addEventListener('pointercancel', pointerEnd);
+
+  // Knapper som skal reagere med en gang (på trykk ned)
+  function onPress(el, fn) {
+    el.addEventListener('touchstart', (e) => { e.preventDefault(); fn(); }, { passive: false });
+    el.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'touch') { e.preventDefault(); fn(); } });
+  }
+  // Knapper som må regnes som "brukerhandling" for lyd i iOS (på slipp)
+  function onTap(el, fn) {
+    el.addEventListener('touchstart', (e) => { e.preventDefault(); }, { passive: false });
+    el.addEventListener('touchend', (e) => { e.preventDefault(); fn(); }, { passive: false });
+    el.addEventListener('click', (e) => { if (e.pointerType !== 'touch') fn(); });
+  }
+
+  onPress(btnSustain, () => setSustain(!sustainOn));
+  onPress(btnTransp, () => { S.tOn = !S.tOn; saveSettings(); renderTransp(); });
+  onPress(btnSettings, openSettings);
+  onTap(lamp, () => {
+    if (!A.ctx) { startAudio(); return; }
+    const st = lampState();
+    if (st === 'bad') restartAudio();
+    else if (st === 'loading') ensureSamples();
+  });
+
+  function renderTransp() {
+    const a = S.tAmt;
+    transpLabel.textContent = a === 0 ? '0' : (a > 0 ? '+' + a : '−' + Math.abs(a));
+    btnTransp.classList.toggle('on', S.tOn);
+    btnTransp.setAttribute('aria-pressed', String(S.tOn));
+  }
+
+  // Hindre zoom, markering og meny
+  document.addEventListener('gesturestart', (e) => e.preventDefault());
+  document.addEventListener('dblclick', (e) => e.preventDefault());
+  document.addEventListener('contextmenu', (e) => { if (!e.target.closest('#settings')) e.preventDefault(); });
+
+  // ---------- Start ----------
+  const startEl = document.getElementById('start');
+  const startHint = document.getElementById('startHint');
+  function startAudio() {
+    if (!A.ctx) createContext();
+    unlock();
+    ensureSamples();
+    requestWakeLock();
+    startEl.hidden = true;
+    startEl.style.display = 'none';
+    updateStatus();
+  }
+  onTap(startEl, startAudio);
+
+  // ---------- Skjermlås ----------
+  let wakeLock = null;
+  async function requestWakeLock() {
+    try {
+      if ('wakeLock' in navigator && document.visibilityState === 'visible' && !wakeLock) {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => { wakeLock = null; });
+      }
+    } catch (e) { wakeLock = null; }
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      releaseAllTouches();
+    } else {
+      tryResume();
+      if (A.ctx) requestWakeLock();
+      updateStatus();
+    }
+  });
+  window.addEventListener('pageshow', () => { tryResume(); updateStatus(); });
+  window.addEventListener('pagehide', releaseAllTouches);
+
+  // ---------- Status og vakthund ----------
+  function lampState() {
+    if (!A.ctx) return 'off';
+    if (A.ctx.state !== 'running' || A.stalled) return 'bad';
+    if (A.decoding.size > 0) return 'loading';
+    const need = neededSamples();
+    if (!need.every((m) => A.buffers.has(m))) return 'loading';
+    return 'ok';
+  }
+  function updateStatus() {
+    const st = lampState();
+    lamp.className = 'ctl ' + st;
+    lamp.setAttribute('aria-label', 'Lydstatus: ' + st);
+    if (!settingsEl.hidden) renderStatusList();
+  }
+  setInterval(() => {
+    if (A.ctx) {
+      const t = A.ctx.currentTime;
+      if (A.ctx.state === 'running' && document.visibilityState === 'visible') {
+        A.stallCount = (t === A.lastTime) ? A.stallCount + 1 : 0;
+        A.stalled = A.stallCount >= 2;
+      } else {
+        A.stallCount = 0;
+        A.stalled = false;
+        if (document.visibilityState === 'visible') tryResume();
+      }
+      A.lastTime = t;
+      // Prøv igjen hvis noen lyder feilet (f.eks. dårlig nett)
+      if (A.failed.size && A.decoding.size === 0) ensureSamples();
+    }
+    updateStatus();
+  }, 1000);
+
+  // ---------- Innstillinger ----------
+  const settingsEl = document.getElementById('settings');
+  const selLo = document.getElementById('selLo');
+  const selHi = document.getElementById('selHi');
+  const selTransp = document.getElementById('selTransp');
+  const rngVol = document.getElementById('rngVol');
+  const rngRev = document.getElementById('rngRev');
+  const outVol = document.getElementById('outVol');
+  const outRev = document.getElementById('outRev');
+  const rangeInfo = document.getElementById('rangeInfo');
+  const statusList = document.getElementById('statusList');
+
+  function fillSelects() {
+    const opts = [];
+    for (let m = MIDI_MIN; m <= MIDI_MAX; m++) {
+      if (!isWhite(m)) continue;
+      opts.push('<option value="' + m + '">' + whiteName(m) + (m === 60 ? ' (midtre C)' : '') + '</option>');
+    }
+    selLo.innerHTML = opts.join('');
+    selHi.innerHTML = opts.join('');
+    const t = [];
+    for (let k = 12; k >= -12; k--) {
+      let label;
+      if (k === 0) label = '0 (ingen)';
+      else {
+        const sign = k > 0 ? '+' : '−';
+        const target = PC_NAME_NO[pc(k)];
+        const extra = Math.abs(k) === 12 ? (k > 0 ? ', en oktav opp' : ', en oktav ned') : '';
+        label = sign + Math.abs(k) + ' (C klinger som ' + target + extra + ')';
+      }
+      t.push('<option value="' + k + '">' + label + '</option>');
+    }
+    selTransp.innerHTML = t.join('');
+  }
+  function renderSettings() {
+    selLo.value = String(S.lo);
+    selHi.value = String(S.hi);
+    selTransp.value = String(S.tAmt);
+    rngVol.value = String(S.vol);
+    rngRev.value = String(S.rev);
+    outVol.textContent = S.vol + ' %';
+    outRev.textContent = S.rev === 0 ? 'Av' : S.rev + ' %';
+    let total = 0, whites = 0;
+    for (let m = S.lo; m <= S.hi; m++) { total++; if (isWhite(m)) whites++; }
+    rangeInfo.textContent = whiteName(S.lo) + ' til ' + whiteName(S.hi) + ': ' + total + ' tangenter (' + whites + ' hvite).';
+    renderStatusList();
+  }
+  function renderStatusList() {
+    const ctx = A.ctx;
+    const need = neededSamples();
+    const loaded = need.filter((m) => A.buffers.has(m)).length;
+    const stateNo = {
+      running: 'kjører', suspended: 'satt på pause', interrupted: 'avbrutt av systemet', closed: 'lukket',
+    };
+    const rows = [
+      ['Lyd', ctx ? (stateNo[ctx.state] || ctx.state) + (A.stalled ? ' (står stille!)' : '') : 'ikke startet'],
+      ['Lydmodus', navigator.audioSession ? navigator.audioSession.type + ' (blandes med andre apper)' : 'ikke støttet i denne nettleseren'],
+      ['Samplerate', ctx ? ctx.sampleRate + ' Hz' : '–'],
+      ['Lyder lastet', loaded + ' av ' + need.length],
+      ['Aktive toner', String(A.voices.filter((v) => !v.released).length)],
+      ['Skjerm holdes våken', wakeLock ? 'ja' : ('wakeLock' in navigator ? 'nei (ikke aktiv nå)' : 'ikke støttet')],
+      ['Klar uten nett', offlineStatus],
+      ['Visning', (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone ? 'Hjem-skjerm-app' : 'Nettleser'],
+      ['Vindu', Math.round(window.innerWidth) + ' × ' + Math.round(window.innerHeight)],
+      ['Lyd startet på nytt', A.restarts + ' gang(er)'],
+      ['Siste feil', A.lastError || 'ingen'],
+      ['Versjon', VERSION],
+    ];
+    statusList.innerHTML = rows.map(([k, v]) => '<dt>' + k + '</dt><dd>' + escapeHtml(v) + '</dd>').join('');
+  }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  }
+  function openSettings() {
+    releaseAllTouches();
+    renderSettings();
+    refreshOfflineStatus();
+    settingsEl.hidden = false;
+    settingsEl.scrollTop = 0;
+  }
+  function closeSettings() {
+    settingsEl.hidden = true;
+    layoutKeys();
+  }
+  function whiteAtOrAbove(m) { while (m < MIDI_MAX && !isWhite(m)) m++; return Math.min(m, MIDI_MAX); }
+  function whiteAtOrBelow(m) { while (m > MIDI_MIN && !isWhite(m)) m--; return Math.max(m, MIDI_MIN); }
+
+  selLo.addEventListener('change', () => {
+    S.lo = Number(selLo.value);
+    if (S.hi <= S.lo) S.hi = whiteAtOrAbove(Math.min(MIDI_MAX, S.lo + 12));
+    if (S.hi <= S.lo) { S.lo = whiteAtOrBelow(S.hi - 12); }
+    saveSettings(); renderSettings(); layoutKeys(); ensureSamples();
+  });
+  selHi.addEventListener('change', () => {
+    S.hi = Number(selHi.value);
+    if (S.hi <= S.lo) S.lo = whiteAtOrBelow(Math.max(MIDI_MIN, S.hi - 12));
+    if (S.hi <= S.lo) { S.hi = whiteAtOrAbove(S.lo + 12); }
+    saveSettings(); renderSettings(); layoutKeys(); ensureSamples();
+  });
+  selTransp.addEventListener('change', () => {
+    S.tAmt = Number(selTransp.value);
+    saveSettings(); renderSettings(); renderTransp(); ensureSamples();
+  });
+  rngVol.addEventListener('input', () => {
+    S.vol = Number(rngVol.value);
+    outVol.textContent = S.vol + ' %';
+    applyVolume(false); saveSettings();
+  });
+  rngRev.addEventListener('input', () => {
+    S.rev = Number(rngRev.value);
+    outRev.textContent = S.rev === 0 ? 'Av' : S.rev + ' %';
+    applyReverb(false); saveSettings();
+  });
+  document.getElementById('btnClose').addEventListener('click', closeSettings);
+  document.getElementById('btnRestart').addEventListener('click', () => {
+    if (!A.ctx) startAudio(); else restartAudio();
+    renderStatusList();
+  });
+
+  // ---------- Frakoblet bruk (service worker) ----------
+  let offlineStatus = 'sjekker …';
+  function refreshOfflineStatus() {
+    if (!('serviceWorker' in navigator) || !window.caches) { offlineStatus = 'ikke støttet'; return; }
+    caches.keys()
+      .then((names) => Promise.all(names.map((n) => caches.open(n).then((c) => c.keys()))))
+      .then((lists) => {
+        const urls = new Set();
+        for (const l of lists) for (const r of l) urls.add(new URL(r.url).pathname.split('/').pop());
+        const have = SAMPLE_MIDIS.filter((m) => urls.has(sampleUrl(m).split('/').pop())).length;
+        const core = urls.has('index.html') || urls.has('');
+        offlineStatus = (have === SAMPLE_MIDIS.length && core) ? 'ja (alt er lagret)' : 'nei, lagret ' + have + ' av ' + SAMPLE_MIDIS.length + ' lyder';
+        if (!settingsEl.hidden) renderStatusList();
+      })
+      .catch(() => { offlineStatus = 'ukjent'; });
+  }
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+    navigator.serviceWorker.register('sw.js').then(() => setTimeout(refreshOfflineStatus, 4000)).catch(() => { offlineStatus = 'kunne ikke aktiveres'; });
+  } else {
+    offlineStatus = 'ikke aktiv (krever https)';
+  }
+
+  // ---------- Oppstart ----------
+  fillSelects();
+  renderTransp();
+  layoutKeys();
+  if ('ResizeObserver' in window) new ResizeObserver(() => layoutKeys()).observe(kb);
+  window.addEventListener('resize', layoutKeys);
+  prefetch();
+  Promise.all(neededSamples().map((m) => fetchBytes(m).catch(() => null))).then((r) => {
+    startHint.textContent = r.every(Boolean) ? 'Lyden er klar' : 'Noen lyder mangler. Sjekk nettet.';
+  });
+  updateStatus();
+
+  // Til testing
+  window.__piano = { A, S, press, release, setSustain, restartAudio, startAudio, neededSamples, hitTest, keys: () => keys, VERSION };
+})();
+</script>
+</body>
+</html>
