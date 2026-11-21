@@ -106,14 +106,51 @@
   #lamp.bad { background: var(--bad); }
   #lamp.bad .dot { background: #fff; box-shadow: 0 0 8px #fff; }
 
+  /* ---------- Hovedområde: pads over tangentene ---------- */
+  #main {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 5px 5px 5px 0;
+  }
+  #pads {
+    flex: 0 0 30%;
+    min-height: 44px;
+    max-height: 160px;
+    display: flex;
+    gap: 5px;
+    touch-action: none;
+  }
+  body.nopads #pads { display: none; }
+  .pad {
+    flex: 1 1 0;
+    min-width: 0;
+    border: 0;
+    border-radius: 10px;
+    background: #2a2440;
+    color: #e6deff;
+    font: 700 clamp(18px, 6vmin, 34px)/1 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    box-shadow: inset 0 0 0 1px rgba(179, 136, 255, 0.28);
+    touch-action: none;
+    cursor: pointer;
+    transition: background-color 0.12s;
+  }
+  .pad.on {
+    background: linear-gradient(180deg, #c3a1ff 0%, #9466f2 100%);
+    color: #1a0a3a;
+    box-shadow: 0 0 14px rgba(179, 136, 255, 0.55);
+  }
+
   /* ---------- Tangenter ---------- */
   #kb {
     position: relative;
     flex: 1 1 auto;
+    min-height: 0;
     min-width: 0;
     touch-action: none;
     overflow: hidden;
-    margin: 5px 5px 5px 0;
     border-radius: 4px;
     background: #000;
   }
@@ -222,6 +259,8 @@
   .btn.primary { background: var(--ok); color: #06210f; border-color: transparent; }
   .btn.slim { width: auto; padding: 7px 14px; }
   input[type=range] { width: 100%; accent-color: var(--transp); height: 30px; touch-action: pan-x; }
+  .field label.check { display: flex; justify-content: flex-start; align-items: center; gap: 10px; font-size: 15px; cursor: pointer; }
+  .check input { width: 22px; height: 22px; accent-color: #9466f2; margin: 0; }
   .hint { font-size: 12.5px; color: var(--muted); line-height: 1.4; margin: 0; }
   dl.status { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; font-size: 13px; }
   dl.status dt { color: var(--muted); }
@@ -240,7 +279,14 @@
       <button id="lamp" class="ctl" aria-label="Lydstatus"><span class="dot"></span></button>
     </div>
   </div>
-  <div id="kb" aria-label="Pianotangenter"></div>
+  <div id="main">
+    <div id="pads">
+      <button class="pad" data-pad="0">C</button>
+      <button class="pad" data-pad="1">Dm</button>
+      <button class="pad" data-pad="2">Bb</button>
+    </div>
+    <div id="kb" aria-label="Pianotangenter"></div>
+  </div>
 </div>
 
 <div id="start" role="button" aria-label="Start pianoet">
@@ -280,23 +326,39 @@
     </section>
 
     <section class="card">
-      <h2>Lyd</h2>
+      <h2>Piano</h2>
       <div class="field">
-        <label for="rngVol">Volum <output id="outVol"></output></label>
+        <label for="rngVol">Piano-volum <output id="outVol"></output></label>
         <input type="range" id="rngVol" min="0" max="100" step="1">
       </div>
       <div class="field">
-        <label for="rngRev">Romklang (reverb) <output id="outRev"></output></label>
+        <label for="rngRev">Piano-romklang (reverb) <output id="outRev"></output></label>
         <input type="range" id="rngRev" min="0" max="100" step="1">
-      </div>
-      <div class="field">
-        <button class="btn" id="btnRestart">Start lyd på nytt</button>
-        <p class="hint">Bruk denne, eller trykk på lampen, hvis lyden har forsvunnet.</p>
       </div>
     </section>
 
     <section class="card">
+      <h2>Pads</h2>
+      <div class="field">
+        <label class="check"><input type="checkbox" id="chkPads"> Vis pads over tangentene</label>
+      </div>
+      <div class="field">
+        <label for="rngPadVol">Pad-volum <output id="outPadVol"></output></label>
+        <input type="range" id="rngPadVol" min="0" max="100" step="1">
+      </div>
+      <div class="field">
+        <label for="rngPadRev">Pad-romklang (reverb) <output id="outPadRev"></output></label>
+        <input type="range" id="rngPadRev" min="0" max="100" step="1">
+      </div>
+      <p class="hint">Ett trykk starter akkorden, trykk på samme pad igjen for å stoppe (kort fade). Pads følger transponeringen. Sustain påvirker ikke pads.</p>
+    </section>
+
+    <section class="card">
       <h2>Teknisk status (testversjon)</h2>
+      <div class="field">
+        <button class="btn" id="btnRestart">Start lyd på nytt</button>
+        <p class="hint">Bruk denne, eller trykk på lampen, hvis lyden har forsvunnet.</p>
+      </div>
       <dl class="status" id="statusList"></dl>
     </section>
 
@@ -315,7 +377,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '0.1 (test)';
+  const VERSION = '0.2 (beta med pads)';
   const STORE_KEY = 'piano.settings.v1';
 
   // ---------- Noter og navn ----------
@@ -323,7 +385,8 @@
   const MIDI_MAX = 108;  // C8
   const WHITE_PCS = [0, 2, 4, 5, 7, 9, 11];
   const WHITE_LETTER = { 0: 'C', 2: 'D', 4: 'E', 5: 'F', 7: 'G', 9: 'A', 11: 'H' };
-  const PC_NAME_NO = ['C', 'Ciss', 'D', 'Ess', 'E', 'F', 'Fiss', 'G', 'Ass', 'A', 'B', 'H'];
+  // Norsk H for B, engelsk Bb for B-flat
+  const PC_NAME = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'H'];
   const pc = (m) => ((m % 12) + 12) % 12;
   const octave = (m) => Math.floor(m / 12) - 1;
   const isWhite = (m) => WHITE_PCS.includes(pc(m));
@@ -340,7 +403,7 @@
   };
 
   // ---------- Innstillinger ----------
-  const DEFAULTS = { lo: 60, hi: 84, tAmt: 4, tOn: false, vol: 75, rev: 0 };
+  const DEFAULTS = { lo: 60, hi: 84, tAmt: 4, tOn: false, vol: 75, rev: 0, pads: true, pVol: 70, pRev: 30 };
   const clampInt = (v, a, b, d) => {
     v = Math.round(Number(v));
     return Number.isFinite(v) ? Math.min(b, Math.max(a, v)) : d;
@@ -356,6 +419,9 @@
     o.tOn = s.tOn === true;
     o.vol = clampInt(s.vol, 0, 100, DEFAULTS.vol);
     o.rev = clampInt(s.rev, 0, 100, DEFAULTS.rev);
+    o.pads = s.pads !== false;
+    o.pVol = clampInt(s.pVol, 0, 100, DEFAULTS.pVol);
+    o.pRev = clampInt(s.pRev, 0, 100, DEFAULTS.pRev);
     return o;
   }
   function loadSettings() {
@@ -379,7 +445,9 @@
   const MAX_VOICES = 48;
 
   const A = {
-    ctx: null, bus: null, dry: null, wet: null, conv: null, convConnected: false, vol: null, lim: null,
+    ctx: null, lim: null, conv: null,
+    bus: null, vol: null, dry: null, send: null, sendOn: false,          // piano
+    padBus: null, padVol: null, padDry: null, padSend: null, padSendOn: false, // pads
     bytes: new Map(),     // midi -> ArrayBuffer (kodet MP3, beholdes for ev. ny dekoding)
     fetching: new Map(),  // midi -> Promise<ArrayBuffer>
     buffers: new Map(),   // midi -> { buf, offset }
@@ -402,24 +470,30 @@
     const AC = window.AudioContext || window.webkitAudioContext;
     let ctx;
     try { ctx = new AC({ latencyHint: 'interactive' }); } catch (e) { ctx = new AC(); }
-    const bus = ctx.createGain();
-    const dry = ctx.createGain();
-    const wet = ctx.createGain();
-    wet.gain.value = 0;
-    const vol = ctx.createGain();
+    // Lydkjede:
+    //   piano: stemmer -> bus -> vol -> dry --------> lim -> høyttaler
+    //                                  \-> send -> conv -/
+    //   pads:  akkord  -> padBus -> padVol -> padDry -> lim
+    //                                     \-> padSend -> conv
     const lim = ctx.createDynamicsCompressor();
     lim.threshold.value = -3;
     lim.knee.value = 0;
     lim.ratio.value = 20;
     lim.attack.value = 0.002;
     lim.release.value = 0.2;
-    bus.connect(dry);
-    dry.connect(vol);
-    wet.connect(vol);
-    vol.connect(lim);
     lim.connect(ctx.destination);
+    const mk = () => ctx.createGain();
+    const bus = mk(), vol = mk(), dry = mk(), send = mk();
+    bus.connect(vol); vol.connect(dry); dry.connect(lim); vol.connect(send);
+    const padBus = mk(), padVol = mk(), padDry = mk(), padSend = mk();
+    padBus.connect(padVol); padVol.connect(padDry); padDry.connect(lim); padVol.connect(padSend);
     ctx.onstatechange = () => updateStatus();
-    Object.assign(A, { ctx, bus, dry, wet, vol, lim, conv: null, convConnected: false, voices: [] });
+    Object.assign(A, {
+      ctx, lim, conv: null,
+      bus, vol, dry, send, sendOn: false,
+      padBus, padVol, padDry, padSend, padSendOn: false,
+      voices: [],
+    });
     A.lastTime = -1; A.stallCount = 0; A.stalled = false;
     applyVolume(true);
     applyReverb(true);
@@ -450,6 +524,7 @@
 
   function restartAudio() {
     releaseAllTouches();
+    stopPadNow();
     const old = A.ctx;
     for (const v of A.voices) { try { v.src.stop(); } catch (e) {} }
     A.voices = [];
@@ -463,11 +538,14 @@
   }
 
   function volumeGain(v) { return 1.6 * Math.pow(v / 100, 2); }
+  function setParam(p, value, instant) {
+    if (instant) p.value = value;
+    else p.setTargetAtTime(value, A.ctx.currentTime, 0.04);
+  }
   function applyVolume(instant) {
-    if (!A.vol) return;
-    const g = volumeGain(S.vol);
-    if (instant) A.vol.gain.value = g;
-    else A.vol.gain.setTargetAtTime(g, A.ctx.currentTime, 0.03);
+    if (!A.ctx) return;
+    setParam(A.vol.gain, volumeGain(S.vol), instant);
+    setParam(A.padVol.gain, volumeGain(S.pVol), instant);
   }
 
   function makeImpulse(ctx) {
@@ -492,29 +570,28 @@
     }
     return ir;
   }
-  function applyReverb(instant) {
-    if (!A.ctx) return;
-    const r = S.rev / 100;
-    const now = A.ctx.currentTime;
-    const wetG = 0.9 * Math.pow(r, 1.3);
-    const dryG = 1 - 0.25 * r;
+  // Romklang deles av piano og pads, men hver har sin egen mengde.
+  // En del som står på 0 kobles helt fra romklangen, så den ikke bruker kraft.
+  function applyReverbPart(amount, sendNode, dryNode, flag, instant) {
+    const r = amount / 100;
     if (r > 0) {
       if (!A.conv) {
         A.conv = A.ctx.createConvolver();
         A.conv.buffer = makeImpulse(A.ctx);
-        A.conv.connect(A.wet);
+        A.conv.connect(A.lim);
       }
-      if (!A.convConnected) { A.bus.connect(A.conv); A.convConnected = true; }
-    } else if (A.convConnected) {
-      // Kobles fra når romklang er 0, så den ikke bruker kraft
-      try { A.bus.disconnect(A.conv); } catch (e) {}
-      A.convConnected = false;
+      if (!A[flag]) { sendNode.connect(A.conv); A[flag] = true; }
+    } else if (A[flag]) {
+      try { sendNode.disconnect(A.conv); } catch (e) {}
+      A[flag] = false;
     }
-    if (instant) { A.wet.gain.value = wetG; A.dry.gain.value = dryG; }
-    else {
-      A.wet.gain.setTargetAtTime(wetG, now, 0.05);
-      A.dry.gain.setTargetAtTime(dryG, now, 0.05);
-    }
+    setParam(sendNode.gain, 0.9 * Math.pow(r, 1.3), instant);
+    setParam(dryNode.gain, 1 - 0.25 * r, instant);
+  }
+  function applyReverb(instant) {
+    if (!A.ctx) return;
+    applyReverbPart(S.rev, A.send, A.dry, 'sendOn', instant);
+    applyReverbPart(S.pRev, A.padSend, A.padDry, 'padSendOn', instant);
   }
 
   // --- Lasting av lydprøver ---
@@ -656,6 +733,140 @@
       const now = A.ctx.currentTime;
       for (const v of A.voices) if (!v.held && !v.released) releaseVoice(v, now, RELEASE_TAU);
     }
+  }
+
+  // ---------- Pads (varm synth-pad, lages direkte i nettleseren) ----------
+  const PADS = [
+    { label: 'C',  notes: [48, 52, 55], bass: 36 }, // C-dur:  C3 E3 G3 + C2
+    { label: 'Dm', notes: [50, 53, 57], bass: 38 }, // d-moll: D3 F3 A3 + D2
+    { label: 'Bb', notes: [46, 50, 53], bass: 34 }, // Bb-dur: Bb2 D3 F3 + Bb1
+  ];
+  const PAD_ATTACK_TAU = 0.09;  // ca. 0,3 s inn
+  const PAD_RELEASE_TAU = 0.2;  // kort fade ut (ca. 0,7 s)
+  const PAD_SAW_GAIN = 0.03;
+  const PAD_BASS_GAIN = 0.1;
+  const mtof = (n) => 440 * Math.pow(2, (n - 69) / 12);
+  let activePad = null;   // indeks for pad som er på
+  let activeChord = null; // lydobjektet som spiller
+
+  function startChord(i) {
+    const ctx = A.ctx;
+    if (!ctx) return null;
+    if (ctx.state !== 'running') tryResume();
+    const t = S.tOn ? S.tAmt : 0;
+    const now = ctx.currentTime;
+    const out = ctx.createGain();
+    out.gain.setValueAtTime(0, now);
+    out.gain.setTargetAtTime(1, now, PAD_ATTACK_TAU);
+    // To myke lavpassfiltre gir en varm, rund klang; en langsom LFO gir litt liv
+    const f1 = ctx.createBiquadFilter();
+    f1.type = 'lowpass'; f1.frequency.value = 1400; f1.Q.value = 0.6;
+    const f2 = ctx.createBiquadFilter();
+    f2.type = 'lowpass'; f2.frequency.value = 2400; f2.Q.value = 0.5;
+    f1.connect(f2); f2.connect(out);
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 0.17;
+    const lfoAmt = ctx.createGain();
+    lfoAmt.gain.value = 250;
+    lfo.connect(lfoAmt); lfoAmt.connect(f1.frequency);
+    const oscs = [lfo];
+    const nodes = [out, f1, f2, lfoAmt];
+    for (const n of PADS[i].notes) {
+      const freq = mtof(n + t);
+      for (const [det, pan] of [[-8, -0.5], [7, 0.5]]) {
+        const o = ctx.createOscillator();
+        o.type = 'sawtooth';
+        o.frequency.value = freq;
+        o.detune.value = det;
+        const g = ctx.createGain();
+        g.gain.value = PAD_SAW_GAIN;
+        o.connect(g);
+        if (ctx.createStereoPanner) {
+          const p = ctx.createStereoPanner();
+          p.pan.value = pan;
+          g.connect(p); p.connect(f1);
+          nodes.push(p);
+        } else {
+          g.connect(f1);
+        }
+        oscs.push(o); nodes.push(g);
+      }
+    }
+    // Myk bassgrunntone (trekant), utenom filteret
+    const b = ctx.createOscillator();
+    b.type = 'triangle';
+    b.frequency.value = mtof(PADS[i].bass + t);
+    const bg = ctx.createGain();
+    bg.gain.value = PAD_BASS_GAIN;
+    b.connect(bg); bg.connect(out);
+    oscs.push(b); nodes.push(bg);
+    out.connect(A.padBus);
+    // Litt ulik starttid gir ulik fase og en mer levende klang
+    oscs.forEach((o, k) => o.start(now + (k === 0 ? 0 : Math.random() * 0.012)));
+    return { ctx, out, oscs, nodes, idx: i, released: false };
+  }
+  function releaseChord(ch, tau) {
+    if (!ch || ch.released) return;
+    ch.released = true;
+    const ctx = ch.ctx;
+    const done = () => { for (const n of ch.nodes) { try { n.disconnect(); } catch (e) {} } };
+    if (ctx !== A.ctx || ctx.state === 'closed') {
+      for (const o of ch.oscs) { try { o.stop(); } catch (e) {} }
+      done();
+      return;
+    }
+    const now = ctx.currentTime;
+    const p = ch.out.gain;
+    try {
+      const cur = p.value;
+      p.cancelScheduledValues(now);
+      p.setValueAtTime(cur, now);
+      p.setTargetAtTime(0, now, tau);
+      const end = now + tau * 8;
+      for (const o of ch.oscs) o.stop(end);
+      ch.oscs[ch.oscs.length - 1].onended = done;
+    } catch (e) {
+      for (const o of ch.oscs) { try { o.stop(); } catch (e2) {} }
+      done();
+    }
+  }
+  function togglePad(i) {
+    if (!A.ctx) return;
+    if (activePad === i) {
+      releaseChord(activeChord, PAD_RELEASE_TAU);
+      activeChord = null;
+      activePad = null;
+    } else {
+      if (activeChord) releaseChord(activeChord, PAD_RELEASE_TAU);
+      activeChord = startChord(i);
+      activePad = activeChord ? i : null;
+    }
+    renderPads();
+  }
+  function retriggerPad() {
+    // Transponering endret mens en pad står på: gli over til ny toneart
+    if (activePad === null || !A.ctx) return;
+    if (activeChord) releaseChord(activeChord, PAD_RELEASE_TAU);
+    activeChord = startChord(activePad);
+    if (!activeChord) activePad = null;
+    renderPads();
+  }
+  function stopPadNow() {
+    if (activeChord) releaseChord(activeChord, 0.03);
+    activeChord = null;
+    activePad = null;
+    renderPads();
+  }
+  function renderPads() {
+    document.querySelectorAll('.pad').forEach((el) => {
+      const on = Number(el.dataset.pad) === activePad;
+      el.classList.toggle('on', on);
+      el.setAttribute('aria-pressed', String(on));
+    });
+  }
+  function applyPadsVisible() {
+    document.body.classList.toggle('nopads', !S.pads);
+    if (!S.pads && activePad !== null) togglePad(activePad);
   }
 
   // ---------- Tangentbord (tegning og treff) ----------
@@ -801,7 +1012,8 @@
   }
 
   onPress(btnSustain, () => setSustain(!sustainOn));
-  onPress(btnTransp, () => { S.tOn = !S.tOn; saveSettings(); renderTransp(); });
+  onPress(btnTransp, () => { S.tOn = !S.tOn; saveSettings(); renderTransp(); if (S.tAmt !== 0) retriggerPad(); });
+  document.querySelectorAll('.pad').forEach((el) => onPress(el, () => togglePad(Number(el.dataset.pad))));
   onPress(btnSettings, openSettings);
   onTap(lamp, () => {
     if (!A.ctx) { startAudio(); return; }
@@ -901,6 +1113,11 @@
   const rngRev = document.getElementById('rngRev');
   const outVol = document.getElementById('outVol');
   const outRev = document.getElementById('outRev');
+  const chkPads = document.getElementById('chkPads');
+  const rngPadVol = document.getElementById('rngPadVol');
+  const rngPadRev = document.getElementById('rngPadRev');
+  const outPadVol = document.getElementById('outPadVol');
+  const outPadRev = document.getElementById('outPadRev');
   const rangeInfo = document.getElementById('rangeInfo');
   const statusList = document.getElementById('statusList');
 
@@ -918,7 +1135,7 @@
       if (k === 0) label = '0 (ingen)';
       else {
         const sign = k > 0 ? '+' : '−';
-        const target = PC_NAME_NO[pc(k)];
+        const target = PC_NAME[pc(k)];
         const extra = Math.abs(k) === 12 ? (k > 0 ? ', en oktav opp' : ', en oktav ned') : '';
         label = sign + Math.abs(k) + ' (C klinger som ' + target + extra + ')';
       }
@@ -934,6 +1151,11 @@
     rngRev.value = String(S.rev);
     outVol.textContent = S.vol + ' %';
     outRev.textContent = S.rev === 0 ? 'Av' : S.rev + ' %';
+    chkPads.checked = S.pads;
+    rngPadVol.value = String(S.pVol);
+    rngPadRev.value = String(S.pRev);
+    outPadVol.textContent = S.pVol + ' %';
+    outPadRev.textContent = S.pRev === 0 ? 'Av' : S.pRev + ' %';
     let total = 0, whites = 0;
     for (let m = S.lo; m <= S.hi; m++) { total++; if (isWhite(m)) whites++; }
     rangeInfo.textContent = whiteName(S.lo) + ' til ' + whiteName(S.hi) + ': ' + total + ' tangenter (' + whites + ' hvite).';
@@ -952,6 +1174,7 @@
       ['Samplerate', ctx ? ctx.sampleRate + ' Hz' : '–'],
       ['Lyder lastet', loaded + ' av ' + need.length],
       ['Aktive toner', String(A.voices.filter((v) => !v.released).length)],
+      ['Pad', activePad === null ? 'av' : PADS[activePad].label + (S.tOn && S.tAmt ? ' (transponert ' + (S.tAmt > 0 ? '+' : '−') + Math.abs(S.tAmt) + ')' : '')],
       ['Skjerm holdes våken', wakeLock ? 'ja' : ('wakeLock' in navigator ? 'nei (ikke aktiv nå)' : 'ikke støttet')],
       ['Klar uten nett', offlineStatus],
       ['Visning', (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone ? 'Hjem-skjerm-app' : 'Nettleser'],
@@ -994,6 +1217,21 @@
   selTransp.addEventListener('change', () => {
     S.tAmt = Number(selTransp.value);
     saveSettings(); renderSettings(); renderTransp(); ensureSamples();
+    if (S.tOn) retriggerPad();
+  });
+  chkPads.addEventListener('change', () => {
+    S.pads = chkPads.checked;
+    saveSettings(); applyPadsVisible();
+  });
+  rngPadVol.addEventListener('input', () => {
+    S.pVol = Number(rngPadVol.value);
+    outPadVol.textContent = S.pVol + ' %';
+    applyVolume(false); saveSettings();
+  });
+  rngPadRev.addEventListener('input', () => {
+    S.pRev = Number(rngPadRev.value);
+    outPadRev.textContent = S.pRev === 0 ? 'Av' : S.pRev + ' %';
+    applyReverb(false); saveSettings();
   });
   rngVol.addEventListener('input', () => {
     S.vol = Number(rngVol.value);
@@ -1036,6 +1274,7 @@
   // ---------- Oppstart ----------
   fillSelects();
   renderTransp();
+  applyPadsVisible();
   layoutKeys();
   if ('ResizeObserver' in window) new ResizeObserver(() => layoutKeys()).observe(kb);
   window.addEventListener('resize', layoutKeys);
@@ -1046,7 +1285,10 @@
   updateStatus();
 
   // Til testing
-  window.__piano = { A, S, press, release, setSustain, restartAudio, startAudio, neededSamples, hitTest, keys: () => keys, VERSION };
+  window.__piano = {
+    A, S, press, release, setSustain, restartAudio, startAudio, neededSamples, hitTest, keys: () => keys, VERSION,
+    togglePad, pad: () => ({ activePad, activeChord }), PADS,
+  };
 })();
 </script>
 </body>
