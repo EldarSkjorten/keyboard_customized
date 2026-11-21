@@ -49,6 +49,7 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
     overflow: hidden;
     overscroll-behavior: none;
+    touch-action: manipulation;
   }
   #app {
     position: fixed;
@@ -65,11 +66,27 @@
     flex-direction: column;
     gap: 5px;
     padding: 5px;
-    touch-action: none;
+  }
+  /* Tomt felt øverst til venstre: her kan du ta tak for å flytte vinduet */
+  .grab {
+    flex: 1.1 1 0;
+    min-height: 30px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding-top: 10px;
+  }
+  .grab span {
+    width: 55%;
+    max-width: 30px;
+    height: 9px;
+    border-top: 2px solid #3a3f4a;
+    border-bottom: 2px solid #3a3f4a;
   }
   .ctl {
     flex: 2 1 0;
     min-height: 0;
+    max-height: 150px; /* i høye vinduer går resten av høyden til grep-feltet */
     width: 100%;
     border: 0;
     border-radius: 9px;
@@ -90,7 +107,7 @@
   .ctl .small { font-size: 0.82em; opacity: 0.8; }
   #btnSustain.on { background: var(--sustain); color: var(--sustain-ink); }
   #btnTransp.on { background: var(--transp); color: var(--transp-ink); }
-  .row { flex: 1.3 1 0; min-height: 0; display: flex; gap: 5px; }
+  .row { flex: 1.3 1 0; min-height: 0; max-height: 84px; display: flex; gap: 5px; }
   .row .ctl { flex: 1 1 0; font-size: clamp(14px, 2.2vw, 20px); }
   #lamp .dot {
     width: 42%;
@@ -111,6 +128,7 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
+    justify-content: flex-end; /* overskytende høyde blir tomrom øverst */
     gap: 5px;
     padding: 5px 5px 5px 0;
   }
@@ -271,6 +289,7 @@
 <body>
 <div id="app">
   <div id="strip">
+    <div class="grab" aria-hidden="true"><span></span></div>
     <button id="btnSustain" class="ctl" aria-pressed="false"><span class="big">S</span><span class="small">Sustain</span></button>
     <button id="btnTransp" class="ctl" aria-pressed="false"><span class="big" id="transpLabel">+4</span><span class="small">Transp.</span></button>
     <div class="row">
@@ -280,9 +299,9 @@
   </div>
   <div id="main">
     <div id="pads">
-      <button class="pad" data-pad="0">C</button>
-      <button class="pad" data-pad="1">Dm</button>
-      <button class="pad" data-pad="2">Bb</button>
+      <button class="pad" data-pad="0">Bb</button>
+      <button class="pad" data-pad="1">C</button>
+      <button class="pad" data-pad="2">Dm</button>
     </div>
     <div id="kb" aria-label="Pianotangenter"></div>
   </div>
@@ -334,6 +353,10 @@
         <label for="rngRev">Piano-romklang (reverb) <output id="outRev"></output></label>
         <input type="range" id="rngRev" min="0" max="100" step="1">
       </div>
+      <div class="field">
+        <label for="rngSus">Sustain-lengde (når Sustain er på) <output id="outSus"></output></label>
+        <input type="range" id="rngSus" min="2" max="12" step="1">
+      </div>
     </section>
 
     <section class="card">
@@ -376,7 +399,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '0.2 (beta med pads)';
+  const VERSION = '0.3 (beta med pads)';
   const STORE_KEY = 'piano.settings.beta.v1';
 
   // ---------- Noter og navn ----------
@@ -402,7 +425,7 @@
   };
 
   // ---------- Innstillinger ----------
-  const DEFAULTS = { lo: 60, hi: 84, tAmt: 4, tOn: false, vol: 75, rev: 0, pads: true, pVol: 70, pRev: 30 };
+  const DEFAULTS = { lo: 60, hi: 84, tAmt: 4, tOn: false, vol: 75, rev: 0, sLen: 7, pads: true, pVol: 70, pRev: 30 };
   const clampInt = (v, a, b, d) => {
     v = Math.round(Number(v));
     return Number.isFinite(v) ? Math.min(b, Math.max(a, v)) : d;
@@ -418,6 +441,7 @@
     o.tOn = s.tOn === true;
     o.vol = clampInt(s.vol, 0, 100, DEFAULTS.vol);
     o.rev = clampInt(s.rev, 0, 100, DEFAULTS.rev);
+    o.sLen = clampInt(s.sLen, 2, 12, DEFAULTS.sLen);
     o.pads = s.pads !== false;
     o.pVol = clampInt(s.pVol, 0, 100, DEFAULTS.pVol);
     o.pRev = clampInt(s.pRev, 0, 100, DEFAULTS.pRev);
@@ -675,13 +699,13 @@
 
     // Samme tone slås an på nytt: demp den forrige raskt (som på et ekte piano)
     for (const v of A.voices) {
-      if (v.note === note && !v.released) releaseVoice(v, now, RESTRIKE_TAU);
+      if (v.note === note && !v.released) dampVoice(v, RESTRIKE_TAU);
     }
-    // Stemmetak: slipp de eldste
+    // Stemmetak: slipp de eldste (først de som bare klinger med sustain)
     let active = A.voices.filter((v) => !v.released);
     while (active.length >= MAX_VOICES) {
-      const victim = active.find((v) => !v.held) || active[0];
-      releaseVoice(victim, now, 0.02);
+      const victim = active.find((v) => v.state === 'sus') || active.find((v) => !v.held) || active[0];
+      dampVoice(victim, 0.02);
       active = A.voices.filter((v) => !v.released);
     }
 
@@ -693,7 +717,8 @@
     g.gain.linearRampToValueAtTime(VOICE_GAIN, now + 0.002);
     src.connect(g);
     g.connect(A.bus);
-    const v = { src, g, note, held: true, released: false, ctx };
+    // state: 'on' = klinger, 'sus' = sluppet med sustain på (langsom fade), 'off' = dempet
+    const v = { src, g, note, held: true, state: 'on', released: false, ctx, fadeStart: null, fadeFrom: VOICE_GAIN, fadeTau: 1, stopped: false };
     src.onended = () => {
       try { g.disconnect(); } catch (e) {}
       const i = A.voices.indexOf(v);
@@ -703,106 +728,165 @@
     A.voices.push(v);
     return v;
   }
-  function releaseVoice(v, now, tau) {
-    if (!v || v.released) return;
-    v.released = true;
+  // Volumet til en tone regnes ut selv (i stedet for å lese det fra nettleseren),
+  // så en ny fade alltid starter nøyaktig der den forrige var.
+  function voiceGainAt(v, t) {
+    if (v.fadeStart === null) return VOICE_GAIN;
+    if (t <= v.fadeStart) return v.fadeFrom;
+    return v.fadeFrom * Math.exp(-(t - v.fadeStart) / v.fadeTau);
+  }
+  function fadeVoice(v, tau, stop, delay) {
     if (v.ctx !== A.ctx) { try { v.src.stop(); } catch (e) {} return; }
+    const now = A.ctx.currentTime;
+    const cur = voiceGainAt(v, now);
+    const start = now + (delay || 0);
     const p = v.g.gain;
     try {
-      const cur = p.value;
       p.cancelScheduledValues(now);
       p.setValueAtTime(cur, now);
-      p.setTargetAtTime(0, now, tau);
-      v.src.stop(now + tau * 9);
-    } catch (e) {
-      try { v.src.stop(); } catch (e2) {}
+      p.setTargetAtTime(0, start, tau);
+    } catch (e) { /* ignorer */ }
+    v.fadeStart = start; v.fadeFrom = cur; v.fadeTau = tau;
+    if (stop && !v.stopped) {
+      v.stopped = true;
+      try { v.src.stop(now + tau * 9); } catch (e) { try { v.src.stop(); } catch (e2) {} }
     }
+  }
+  function dampVoice(v, tau) {
+    if (!v || v.released) return;
+    v.released = true;
+    v.state = 'off';
+    fadeVoice(v, tau, true);
   }
   function noteOff(v) {
     if (!v) return;
     v.held = false;
-    if (sustainOn) return;
-    releaseVoice(v, A.ctx ? A.ctx.currentTime : 0, RELEASE_TAU);
+    if (v.released) return;
+    if (sustainOn) {
+      v.state = 'sus';
+      // Sustain-lengde (sekunder): tonen klinger naturlig første halvdel,
+      // og fades så helt ut innen valgt tid. 12 = naturlig utklinging.
+      if (S.sLen < 12) fadeVoice(v, (S.sLen * 0.5) / 6.9, false, S.sLen * 0.5);
+    } else {
+      dampVoice(v, RELEASE_TAU);
+    }
   }
   function setSustain(on) {
     sustainOn = on;
     btnSustain.classList.toggle('on', on);
     btnSustain.setAttribute('aria-pressed', String(on));
     if (!on && A.ctx) {
-      const now = A.ctx.currentTime;
-      for (const v of A.voices) if (!v.held && !v.released) releaseVoice(v, now, RELEASE_TAU);
+      for (const v of A.voices) if (!v.held && v.state === 'sus') dampVoice(v, RELEASE_TAU);
     }
   }
 
   // ---------- Pads (varm synth-pad, lages direkte i nettleseren) ----------
+  // Rekkefølge: dypest til venstre
   const PADS = [
-    { label: 'C',  notes: [48, 52, 55], bass: 36 }, // C-dur:  C3 E3 G3 + C2
-    { label: 'Dm', notes: [50, 53, 57], bass: 38 }, // d-moll: D3 F3 A3 + D2
-    { label: 'Bb', notes: [46, 50, 53], bass: 34 }, // Bb-dur: Bb2 D3 F3 + Bb1
+    { label: 'Bb', notes: [46, 50, 53, 58], bass: 34 }, // Bb-dur: Bb2 D3 F3 Bb3 + Bb1
+    { label: 'C',  notes: [48, 52, 55, 60], bass: 36 }, // C-dur:  C3 E3 G3 C4 + C2
+    { label: 'Dm', notes: [50, 53, 57, 62], bass: 38 }, // d-moll: D3 F3 A3 D4 + D2
   ];
-  const PAD_ATTACK_TAU = 0.09;  // ca. 0,3 s inn
-  const PAD_RELEASE_TAU = 0.2;  // kort fade ut (ca. 0,7 s)
-  const PAD_SAW_GAIN = 0.03;
-  const PAD_BASS_GAIN = 0.1;
+  // Myk innfading (S-kurve over ca. 0,65 s), alltid lik
+  const PAD_ATTACK = [[0, 0], [0.08, 0.04], [0.18, 0.2], [0.3, 0.52], [0.42, 0.82], [0.55, 0.97], [0.65, 1]];
+  const PAD_START_DELAY = 0.03; // starter litt frem i tid, så starten aldri kuttes
+  const PAD_RELEASE_TAU = 0.3;  // fade ut (ca. 1 s)
+  const PAD_VOICE_GAIN = 0.022;
+  const PAD_TOP_GAIN = 0.55;    // øverste tone litt svakere
+  const PAD_BASS_GAIN = 0.15;
+  const PAD_DETUNE = [-9, 1, 10];   // tre svakt forstemte stemmer per tone
+  const PAD_PANS = [-0.6, 0, 0.6];  // spredt i stereo
   const mtof = (n) => 440 * Math.pow(2, (n - 69) / 12);
   let activePad = null;   // indeks for pad som er på
   let activeChord = null; // lydobjektet som spiller
+  let padWaveCtx = null, padWaves = null, padBassWave = null;
 
+  function padWavesFor(ctx) {
+    // Myke bølgeformer (færre overtoner enn sagtann) med faste faser, så lyden blir lik hver gang
+    if (padWaveCtx === ctx) return;
+    const N = 32;
+    const make = (seed, amp) => {
+      let s = seed;
+      const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+      const re = new Float32Array(N), im = new Float32Array(N);
+      for (let n = 1; n < N; n++) {
+        const a = amp(n), ph = rnd() * 2 * Math.PI;
+        re[n] = a * Math.cos(ph);
+        im[n] = a * Math.sin(ph);
+      }
+      return ctx.createPeriodicWave(re, im);
+    };
+    padWaves = [11, 23, 37].map((seed) => make(seed, (n) => 1 / Math.pow(n, 1.55)));
+    padBassWave = make(5, (n) => [0, 1, 0.45, 0.18, 0.08][n] || 0);
+    padWaveCtx = ctx;
+  }
   function startChord(i) {
     const ctx = A.ctx;
     if (!ctx) return null;
     if (ctx.state !== 'running') tryResume();
+    padWavesFor(ctx);
     const t = S.tOn ? S.tAmt : 0;
-    const now = ctx.currentTime;
-    const out = ctx.createGain();
-    out.gain.setValueAtTime(0, now);
-    out.gain.setTargetAtTime(1, now, PAD_ATTACK_TAU);
-    // To myke lavpassfiltre gir en varm, rund klang; en langsom LFO gir litt liv
-    const f1 = ctx.createBiquadFilter();
-    f1.type = 'lowpass'; f1.frequency.value = 1400; f1.Q.value = 0.6;
-    const f2 = ctx.createBiquadFilter();
-    f2.type = 'lowpass'; f2.frequency.value = 2400; f2.Q.value = 0.5;
-    f1.connect(f2); f2.connect(out);
+    const t0 = ctx.currentTime + PAD_START_DELAY;
+    // Innfading på én node, utfading på en annen: de forstyrrer aldri hverandre
+    const env = ctx.createGain();
+    env.gain.value = 0;
+    env.gain.setValueAtTime(0, t0);
+    for (const [dt, v] of PAD_ATTACK.slice(1)) env.gain.linearRampToValueAtTime(v, t0 + dt);
+    const rel = ctx.createGain();
+    env.connect(rel);
+    rel.connect(A.padBus);
+    // To myke lavpassfiltre gir en varm, rund klang; en svært langsom LFO gir litt liv
+    const lp1 = ctx.createBiquadFilter();
+    lp1.type = 'lowpass'; lp1.frequency.value = 950; lp1.Q.value = 0.35;
+    const lp2 = ctx.createBiquadFilter();
+    lp2.type = 'lowpass'; lp2.frequency.value = 1700; lp2.Q.value = 0.4;
+    lp1.connect(lp2); lp2.connect(env);
     const lfo = ctx.createOscillator();
-    lfo.frequency.value = 0.17;
+    lfo.frequency.value = 0.11;
     const lfoAmt = ctx.createGain();
-    lfoAmt.gain.value = 250;
-    lfo.connect(lfoAmt); lfoAmt.connect(f1.frequency);
+    lfoAmt.gain.value = 90;
+    lfo.connect(lfoAmt); lfoAmt.connect(lp1.frequency);
     const oscs = [lfo];
-    const nodes = [out, f1, f2, lfoAmt];
-    for (const n of PADS[i].notes) {
+    const nodes = [env, rel, lp1, lp2, lfoAmt];
+    // Tre stereogrupper (venstre, midt, høyre)
+    const groups = PAD_PANS.map((pan) => {
+      const g = ctx.createGain();
+      nodes.push(g);
+      if (ctx.createStereoPanner) {
+        const p = ctx.createStereoPanner();
+        p.pan.value = pan;
+        g.connect(p); p.connect(lp1);
+        nodes.push(p);
+      } else {
+        g.connect(lp1);
+      }
+      return g;
+    });
+    const notes = PADS[i].notes;
+    notes.forEach((n, ni) => {
       const freq = mtof(n + t);
-      for (const [det, pan] of [[-8, -0.5], [7, 0.5]]) {
+      const level = PAD_VOICE_GAIN * (ni === notes.length - 1 ? PAD_TOP_GAIN : 1);
+      PAD_DETUNE.forEach((det, k) => {
         const o = ctx.createOscillator();
-        o.type = 'sawtooth';
+        o.setPeriodicWave(padWaves[k]);
         o.frequency.value = freq;
         o.detune.value = det;
         const g = ctx.createGain();
-        g.gain.value = PAD_SAW_GAIN;
-        o.connect(g);
-        if (ctx.createStereoPanner) {
-          const p = ctx.createStereoPanner();
-          p.pan.value = pan;
-          g.connect(p); p.connect(f1);
-          nodes.push(p);
-        } else {
-          g.connect(f1);
-        }
+        g.gain.value = level;
+        o.connect(g); g.connect(groups[k]);
         oscs.push(o); nodes.push(g);
-      }
-    }
-    // Myk bassgrunntone (trekant), utenom filteret
+      });
+    });
+    // Fyldig bassgrunntone, utenom filteret
     const b = ctx.createOscillator();
-    b.type = 'triangle';
+    b.setPeriodicWave(padBassWave);
     b.frequency.value = mtof(PADS[i].bass + t);
     const bg = ctx.createGain();
     bg.gain.value = PAD_BASS_GAIN;
-    b.connect(bg); bg.connect(out);
+    b.connect(bg); bg.connect(env);
     oscs.push(b); nodes.push(bg);
-    out.connect(A.padBus);
-    // Litt ulik starttid gir ulik fase og en mer levende klang
-    oscs.forEach((o, k) => o.start(now + (k === 0 ? 0 : Math.random() * 0.012)));
-    return { ctx, out, oscs, nodes, idx: i, released: false };
+    for (const o of oscs) o.start(t0);
+    return { ctx, rel, oscs, nodes, idx: i, released: false, t0 };
   }
   function releaseChord(ch, tau) {
     if (!ch || ch.released) return;
@@ -814,13 +898,10 @@
       done();
       return;
     }
-    const now = ctx.currentTime;
-    const p = ch.out.gain;
+    const now = Math.max(ctx.currentTime + 0.005, ch.t0);
     try {
-      const cur = p.value;
-      p.cancelScheduledValues(now);
-      p.setValueAtTime(cur, now);
-      p.setTargetAtTime(0, now, tau);
+      ch.rel.gain.setValueAtTime(1, now);
+      ch.rel.gain.setTargetAtTime(0, now, tau);
       const end = now + tau * 8;
       for (const o of ch.oscs) o.stop(end);
       ch.oscs[ch.oscs.length - 1].onended = done;
@@ -880,13 +961,18 @@
   let whiteW = 0, blackH = 0;
   const BLACK_SHIFT = { 1: -0.08, 3: 0.08, 6: -0.1, 8: 0, 10: 0.1 };
 
+  const KEY_RATIO = 6.5; // maks lengde i forhold til bredde for hvite tangenter
+
   function layoutKeys() {
+    const whites = [];
+    for (let m = S.lo; m <= S.hi; m++) if (isWhite(m)) whites.push(m);
+    // Unngå unaturlig lange tangenter i høye vinduer: resten blir tomrom øverst
+    const maxH = Math.max(80, Math.round(kb.clientWidth / whites.length * KEY_RATIO)) + 'px';
+    if (kb.style.maxHeight !== maxH) kb.style.maxHeight = maxH;
     const rect = kb.getBoundingClientRect();
     const W = rect.width, H = rect.height;
     kb.textContent = '';
     keys = [];
-    const whites = [];
-    for (let m = S.lo; m <= S.hi; m++) if (isWhite(m)) whites.push(m);
     whiteW = W / whites.length;
     blackH = H * 0.62;
     const bw = whiteW * 0.6;
@@ -1112,6 +1198,9 @@
   const rngRev = document.getElementById('rngRev');
   const outVol = document.getElementById('outVol');
   const outRev = document.getElementById('outRev');
+  const rngSus = document.getElementById('rngSus');
+  const outSus = document.getElementById('outSus');
+  const susLabel = () => (S.sLen >= 12 ? 'naturlig (lang)' : S.sLen + ' s');
   const chkPads = document.getElementById('chkPads');
   const rngPadVol = document.getElementById('rngPadVol');
   const rngPadRev = document.getElementById('rngPadRev');
@@ -1150,6 +1239,8 @@
     rngRev.value = String(S.rev);
     outVol.textContent = S.vol + ' %';
     outRev.textContent = S.rev === 0 ? 'Av' : S.rev + ' %';
+    rngSus.value = String(S.sLen);
+    outSus.textContent = susLabel();
     chkPads.checked = S.pads;
     rngPadVol.value = String(S.pVol);
     rngPadRev.value = String(S.pRev);
@@ -1241,6 +1332,11 @@
     S.rev = Number(rngRev.value);
     outRev.textContent = S.rev === 0 ? 'Av' : S.rev + ' %';
     applyReverb(false); saveSettings();
+  });
+  rngSus.addEventListener('input', () => {
+    S.sLen = Number(rngSus.value);
+    outSus.textContent = susLabel();
+    saveSettings();
   });
   document.getElementById('btnClose').addEventListener('click', closeSettings);
   document.getElementById('btnRestart').addEventListener('click', () => {
