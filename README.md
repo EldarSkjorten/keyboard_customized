@@ -6,23 +6,25 @@ Et enkelt nettpiano med akkord-pads for iPad, laget for bruk i Stage Manager ved
 
 **Åpne:** https://eldarskjorten.github.io/keyboard_customized/
 
-## Funksjoner (versjon 0.2)
+## Funksjoner (versjon 0.3)
 
 - Flygellyd (Salamander Grand Piano). Alle anslag har samme styrke.
-- **Pads over tangentene:** C, Dm og Bb, med en varm synth-pad-lyd laget direkte i nettleseren.
-  - Ett trykk starter akkorden. Et trykk på en annen pad bytter, og et nytt trykk på samme pad stopper med en kort fade.
+- **Pads over tangentene:** Bb, C og Dm (dypest til venstre), med en varm og fyldig synth-pad-lyd laget direkte i nettleseren. Myk og lik start hver gang.
+  - Ett trykk starter akkorden. Et trykk på en annen pad bytter, og et nytt trykk på samme pad stopper med en fade på ca. 1 s.
   - Padsene følger transponeringen (med +4 blir C → E, Dm → F#m og Bb → D). Sustain påvirker ikke padsene.
-- **Sustain** av/på (gul knapp). Når den slås av, dempes alle pianotoner du ikke holder inne.
+- **Sustain** av/på (gul knapp). Hvor lenge tonene klinger, velges med «Sustain-lengde» (standard 7 s). Når sustain slås av, dempes alle pianotoner du ikke holder inne.
 - **Transp.** av/på (blå knapp). Standard er +4 halvtoner (C klinger som E). Antall velges i innstillingene (−12 til +12).
 - **Innstillinger (⚙):**
   - laveste og høyeste tone og transponering
-  - piano-volum og piano-romklang
+  - piano-volum, piano-romklang og sustain-lengde
   - vis/skjul pads, pad-volum og pad-romklang
 - **Lampe:** grønn = klar, gul = laster lyd, rød = lyden har stoppet. Trykk på den røde lampen for å starte lyden på nytt.
 - Lyden blandes med lyd fra andre apper (lydmodus «ambient»), i stedet for å stoppe dem.
 - Virker uten nett etter at siden er åpnet én gang.
 - Innstillingene huskes på iPad-en. Sustain starter alltid av.
 - Tonenavn: norsk H for B, engelsk Bb for B-flat. C4 er midtre C.
+- Tomt felt øverst til venstre for å ta tak i og flytte vinduet.
+- Tangentene blir ikke unaturlig lange i høye vinduer: overskytende høyde blir tomrom øverst.
 
 ## Ideer til senere versjoner
 
