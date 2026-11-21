@@ -36,8 +36,10 @@ Et enkelt nettpiano med akkord-pads for iPad, laget for bruk i Stage Manager ved
 
 ## Versjoner
 
-- `main`: gjeldende versjon på adressen over.
+- `main`: gjeldende versjon på adressen over (0.4, med pads).
+- `stabil-v0.4`: versjonen med pads slik den ble godkjent (tilbakefallspunkt).
 - `stabil-v0.1`: første testversjon uten pads (tilbakefallspunkt).
+- `beta/`: kopi av 0.4 med egne innstillinger, beholdt så et eventuelt beta-ikon på Hjem-skjermen fortsatt virker.
 
 ## Lyd og lisens
 
