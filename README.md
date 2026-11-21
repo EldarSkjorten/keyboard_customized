@@ -6,11 +6,11 @@ Et enkelt nettpiano med akkord-pads for iPad, laget for bruk i Stage Manager ved
 
 **Åpne:** https://eldarskjorten.github.io/keyboard_customized/
 
-## Funksjoner (versjon 0.3)
+## Funksjoner (versjon 0.4)
 
 - Flygellyd (Salamander Grand Piano). Alle anslag har samme styrke.
 - **Pads over tangentene:** Bb, C og Dm (dypest til venstre), med en varm og fyldig synth-pad-lyd laget direkte i nettleseren. Myk og lik start hver gang.
-  - Ett trykk starter akkorden. Et trykk på en annen pad bytter, og et nytt trykk på samme pad stopper med en fade på ca. 1 s.
+  - Ett trykk starter akkorden (myk innfading). Et trykk på en annen pad bytter med en rask, jevn overgang uten hull, og et nytt trykk på samme pad stopper med en fade på ca. 1 s.
   - Padsene følger transponeringen (med +4 blir C → E, Dm → F#m og Bb → D). Sustain påvirker ikke padsene.
 - **Sustain** av/på (gul knapp). Hvor lenge tonene klinger, velges med «Sustain-lengde» (standard 7 s). Når sustain slås av, dempes alle pianotoner du ikke holder inne.
 - **Transp.** av/på (blå knapp). Standard er +4 halvtoner (C klinger som E). Antall velges i innstillingene (−12 til +12).
@@ -23,7 +23,8 @@ Et enkelt nettpiano med akkord-pads for iPad, laget for bruk i Stage Manager ved
 - Virker uten nett etter at siden er åpnet én gang.
 - Innstillingene huskes på iPad-en. Sustain starter alltid av.
 - Tonenavn: norsk H for B, engelsk Bb for B-flat. C4 er midtre C.
-- Tomt felt øverst til venstre for å ta tak i og flytte vinduet.
+- Alle C-tangenter er litt grå, så C er lett å finne uansett hvilket utsnitt av tangentene som vises.
+- Tomt felt langs hele toppen (med et lite håndtak): iPadOS flytter vinduet når du drar i de øverste ca. 30 punktene, og her ligger ingen knapper eller tangenter. Over Sustain er det også tomt, der iPadOS viser vindusknappene.
 - Tangentene blir ikke unaturlig lange i høye vinduer: overskytende høyde blir tomrom øverst.
 
 ## Ideer til senere versjoner

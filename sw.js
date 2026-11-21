@@ -1,5 +1,5 @@
 // Service worker: lagrer pianoet og lydene på iPad-en, så det virker selv om nettet faller ut.
-const VERSION = '0.2.0';
+const VERSION = '0.2.1';
 const CORE_CACHE = 'piano-core-' + VERSION;
 const SAMPLE_CACHE = 'piano-samples-v1'; // lydfilene endres ikke; bytt navn hvis de gjør det
 

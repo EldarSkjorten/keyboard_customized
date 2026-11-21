@@ -31,6 +31,8 @@
     --white-key: #f7f7f5;
     --white-key-2: #e6e6e2;
     --white-down: #bcd6f2;
+    --c-key: #d9dade;      /* C-tangentene er litt grå, så C er lett å finne */
+    --c-key-2: #c9cacf;
     --black-key: #24262b;
     --black-key-2: #0c0d10;
     --black-down: #3d6694;
@@ -56,7 +58,22 @@
     position: fixed;
     inset: 0;
     display: flex;
-    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    padding: calc(env(safe-area-inset-top) + var(--topbar)) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  /* Tomt felt langs hele toppen: iPadOS flytter vinduet når du drar i de øverste ca. 30 punktene.
+     Her ligger ingen knapper eller tangenter, så du kan ta tak uten å spille. */
+  :root { --topbar: 30px; }
+  #app::before {
+    content: "";
+    position: absolute;
+    top: calc(env(safe-area-inset-top) + 13px);
+    left: 50%;
+    width: 44px;
+    height: 5px;
+    margin-left: -22px;
+    border-radius: 3px;
+    background: #353a45;
+    pointer-events: none;
   }
 
   /* ---------- Kontrollstripe ---------- */
@@ -68,21 +85,10 @@
     gap: 5px;
     padding: 5px;
   }
-  /* Tomt felt øverst til venstre: her kan du ta tak for å flytte vinduet */
+  /* Tomrom over Sustain: her ligger iPadOS sine vindusknapper (de tre prikkene) */
   .grab {
     flex: 1.1 1 0;
-    min-height: 30px;
-    display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    padding-top: 10px;
-  }
-  .grab span {
-    width: 55%;
-    max-width: 30px;
-    height: 9px;
-    border-top: 2px solid #3a3f4a;
-    border-bottom: 2px solid #3a3f4a;
+    min-height: 14px;
   }
   .ctl {
     flex: 2 1 0;
@@ -180,6 +186,8 @@
     border-radius: 0 0 5px 5px;
   }
   .wk:first-child { border-left: 0; }
+  .wk.c { background: linear-gradient(180deg, var(--c-key) 0%, var(--c-key) 82%, var(--c-key-2) 100%); }
+  .wk.c .lbl { color: #6c717b; }
   .wk.down { background: linear-gradient(180deg, var(--white-down) 0%, #a9c8ea 100%); }
   .bk {
     z-index: 2;
@@ -290,7 +298,7 @@
 <body>
 <div id="app">
   <div id="strip">
-    <div class="grab" aria-hidden="true"><span></span></div>
+    <div class="grab" aria-hidden="true"></div>
     <button id="btnSustain" class="ctl" aria-pressed="false"><span class="big">S</span><span class="small">Sustain</span></button>
     <button id="btnTransp" class="ctl" aria-pressed="false"><span class="big" id="transpLabel">+4</span><span class="small">Transp.</span></button>
     <div class="row">
@@ -400,7 +408,7 @@
 (() => {
   'use strict';
 
-  const VERSION = '0.3 (beta med pads)';
+  const VERSION = '0.4 (beta med pads)';
   const STORE_KEY = 'piano.settings.v1';
 
   // ---------- Noter og navn ----------
@@ -790,8 +798,19 @@
   ];
   // Myk innfading (S-kurve over ca. 0,65 s), alltid lik
   const PAD_ATTACK = [[0, 0], [0.08, 0.04], [0.18, 0.2], [0.3, 0.52], [0.42, 0.82], [0.55, 0.97], [0.65, 1]];
+  // Ved bytte fra en akkord til en annen: rask og jevn overgang (kryssfade, ny akkord helt inne etter 0,28 s).
+  // Den nye kommer inn med en sinuskurve mens den gamle holder litt og så faller,
+  // så den samlede lydstyrken holder seg jevn (målt: ikke under ca. 90 %) og det blir ikke noe hull.
+  const PAD_XFADE_TIME = 0.28;
+  const PAD_XFADE_ATTACK = [0, 1, 2, 3, 4, 5, 6, 7].map((k) => {
+    const t = (k / 7) * PAD_XFADE_TIME;
+    return [t, Math.sin((Math.PI / 2) * (t / PAD_XFADE_TIME))];
+  });
+  const PAD_XFADE_HOLD = 0.1;       // den gamle akkorden holder full styrke så lenge før den faller
+  const PAD_XFADE_TAU = 0.2;
+  const PAD_XFADE_BASS_TAU = 0.1;   // den gamle bassen går litt raskere ut, så to basstoner ikke svever mot hverandre
   const PAD_START_DELAY = 0.03; // starter litt frem i tid, så starten aldri kuttes
-  const PAD_RELEASE_TAU = 0.3;  // fade ut (ca. 1 s)
+  const PAD_RELEASE_TAU = 0.3;  // fade ut ved stopp (ca. 1 s)
   const PAD_VOICE_GAIN = 0.022;
   const PAD_TOP_GAIN = 0.55;    // øverste tone litt svakere
   const PAD_BASS_GAIN = 0.15;
@@ -821,7 +840,7 @@
     padBassWave = make(5, (n) => [0, 1, 0.45, 0.18, 0.08][n] || 0);
     padWaveCtx = ctx;
   }
-  function startChord(i) {
+  function startChord(i, attack) {
     const ctx = A.ctx;
     if (!ctx) return null;
     if (ctx.state !== 'running') tryResume();
@@ -832,7 +851,7 @@
     const env = ctx.createGain();
     env.gain.value = 0;
     env.gain.setValueAtTime(0, t0);
-    for (const [dt, v] of PAD_ATTACK.slice(1)) env.gain.linearRampToValueAtTime(v, t0 + dt);
+    for (const [dt, v] of (attack || PAD_ATTACK).slice(1)) env.gain.linearRampToValueAtTime(v, t0 + dt);
     const rel = ctx.createGain();
     env.connect(rel);
     rel.connect(A.padBus);
@@ -887,9 +906,9 @@
     b.connect(bg); bg.connect(env);
     oscs.push(b); nodes.push(bg);
     for (const o of oscs) o.start(t0);
-    return { ctx, rel, oscs, nodes, idx: i, released: false, t0 };
+    return { ctx, rel, bassGain: bg, oscs, nodes, idx: i, released: false, t0 };
   }
-  function releaseChord(ch, tau) {
+  function releaseChord(ch, tau, at, bassTau) {
     if (!ch || ch.released) return;
     ch.released = true;
     const ctx = ch.ctx;
@@ -899,16 +918,30 @@
       done();
       return;
     }
-    const now = Math.max(ctx.currentTime + 0.005, ch.t0);
+    const now = Math.max(ctx.currentTime + 0.005, ch.t0, at || 0);
     try {
       ch.rel.gain.setValueAtTime(1, now);
       ch.rel.gain.setTargetAtTime(0, now, tau);
+      if (bassTau) {
+        ch.bassGain.gain.setValueAtTime(PAD_BASS_GAIN, now);
+        ch.bassGain.gain.setTargetAtTime(0, now, bassTau);
+      }
       const end = now + tau * 8;
       for (const o of ch.oscs) o.stop(end);
       ch.oscs[ch.oscs.length - 1].onended = done;
     } catch (e) {
       for (const o of ch.oscs) { try { o.stop(); } catch (e2) {} }
       done();
+    }
+  }
+  function playChord(i) {
+    // Start akkord i: fra stillhet med myk innfading, ellers kryssfade fra den som spiller
+    const old = activeChord;
+    activeChord = startChord(i, old ? PAD_XFADE_ATTACK : PAD_ATTACK);
+    activePad = activeChord ? i : null;
+    if (old) {
+      if (activeChord) releaseChord(old, PAD_XFADE_TAU, activeChord.t0 + PAD_XFADE_HOLD, PAD_XFADE_BASS_TAU);
+      else releaseChord(old, PAD_RELEASE_TAU);
     }
   }
   function togglePad(i) {
@@ -918,18 +951,14 @@
       activeChord = null;
       activePad = null;
     } else {
-      if (activeChord) releaseChord(activeChord, PAD_RELEASE_TAU);
-      activeChord = startChord(i);
-      activePad = activeChord ? i : null;
+      playChord(i);
     }
     renderPads();
   }
   function retriggerPad() {
     // Transponering endret mens en pad står på: gli over til ny toneart
     if (activePad === null || !A.ctx) return;
-    if (activeChord) releaseChord(activeChord, PAD_RELEASE_TAU);
-    activeChord = startChord(activePad);
-    if (!activeChord) activePad = null;
+    playChord(activePad);
     renderPads();
   }
   function stopPadNow() {
@@ -981,7 +1010,7 @@
     const downSet = new Set(keyDownCount.keys());
     whites.forEach((m, i) => {
       const el = document.createElement('div');
-      el.className = 'wk' + (downSet.has(m) ? ' down' : '');
+      el.className = 'wk' + (pc(m) === 0 ? ' c' : '') + (downSet.has(m) ? ' down' : '');
       el.style.left = (i * whiteW) + 'px';
       el.style.width = whiteW + 'px';
       if (pc(m) === 0 && whiteW >= 18) {
