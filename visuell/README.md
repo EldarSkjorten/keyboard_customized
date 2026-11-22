@@ -29,3 +29,5 @@ Ligger over pads og tangenter, eller til venstre for dem (⚙ → Visning → Pl
 
 Visningsfeltet kan slås av i innstillingene, og da er siden som det vanlige pianoet.
 Innstillingene lagres separat fra hovedversjonen.
+
+Sandkasse med flere ideer (Under/Etter, Del for del, Melodier): https://eldarskjorten.github.io/keyboard_customized/sandkasse/
