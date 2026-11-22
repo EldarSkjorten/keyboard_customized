@@ -6,6 +6,10 @@ Denne mappen er «det enkleste som funker» til presentasjonen. Nye ideer prøve
 **Åpne:** https://eldarskjorten.github.io/keyboard_customized/visuell/
 **Forrige versjon (0.2), hvis noe ikke virker:** https://eldarskjorten.github.io/keyboard_customized/visuell-0.2/
 
+## Nytt i 0.3.3
+
+- Notene (og avstanden mellom notelinjene) er litt større, og notelinjene står midt i hver linje.
+
 ## Nytt i 0.3.2
 
 - Notene har fast størrelse, uansett hvor mange tangenter som vises. Notelinjene står i midten av hver linje,

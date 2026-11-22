@@ -659,7 +659,7 @@
 (() => {
   'use strict';
 
-  const VERSION = 'visuell 0.3.2 (bygger på 0.4)';
+  const VERSION = 'visuell 0.3.3 (bygger på 0.4)';
   const STORE_KEY = 'piano.settings.visuell.v1';
   const SOUND_DEFAULTS_KEY = 'piano.visuell.sounddefaults.v2'; // satt når standardlyd fra 0.3 er tatt i bruk
   const ROWS_KEY = 'piano.visuell.rows.v1';   // det som står i «Spill»-feltet
@@ -1760,10 +1760,11 @@
     const STAFF_LO = dia(64), STAFF_HI = dia(77); // G-nøkkel: nederste linje E4, øverste linje F5
     // Notelinjer: klar blå og tynne, så de ikke forveksles med de grå skillelinjene mellom linjene i feltet
     const STAFF_INK = 'rgba(40,112,205,0.85)', STAFF_W = 1;
-    // Fast loddrett ramme i hver linje: G3 til C6 (notelinjene omtrent i midten), pluss luft over og under.
+    // Fast loddrett ramme i hver linje, med notelinjene midt i (G3 til C6 får plass, med litt luft).
     // Notestørrelsen avhenger da bare av linjehøyden, ikke av hvor mange tangenter som vises.
-    // FRAME_PAD = luft i trinn utenfor G3 og C6 (større tall = mindre noter og mer luft).
-    const FRAME_LO = dia(55), FRAME_HI = dia(84), FRAME_PAD = 4;
+    // FRAME_HALF = halve rammehøyden i trinn (mindre tall = større noter og mindre luft).
+    // 11,5: C6 har 3,5 trinn til toppen, G3 2,5 trinn til bunnen (det var mest luft under).
+    const FRAME_MID = (STAFF_LO + STAFF_HI) / 2, FRAME_HALF = 11.5;
 
     // ----- Farger for deler -----
     const KIND_NAME = { r: 'Repetisjon', v: 'Variasjon' };
@@ -1959,7 +1960,7 @@
 
       // Loddrett: fast ramme (FRAME_*), lik i alle visninger, så notene ikke flytter seg når tangentområdet
       // endres eller Notelinjer slås av og på. Bare toner som spilles utenfor rammen, gjør den større.
-      let pLo = FRAME_LO - FRAME_PAD, pHi = FRAME_HI + FRAME_PAD;
+      let pLo = FRAME_MID - FRAME_HALF, pHi = FRAME_MID + FRAME_HALF;
       for (const r of rows) for (const n of r.notes) { const p = staffPos(n.midi).pos; pLo = Math.min(pLo, p - 1.5); pHi = Math.max(pHi, p + 1.5); }
       const span = pHi - pLo;
       const nameH = S.dNames ? 16 : 0;

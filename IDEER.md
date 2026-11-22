@@ -1,21 +1,22 @@
 # Ideer og oppgaver – samlet liste
 
 Alle ideer til retting og videreutvikling, samlet ett sted, så de kan vurderes samlet neste gang.
-Sist oppdatert: 22. november 2026 (etter visuell 0.3.2).
+Sist oppdatert: 22. november 2026 (etter visuell 0.3.3).
 
 Nummerene er faste (bruk dem når vi snakker om dem, f.eks. «idé 9»). Nye ideer får neste ledige nummer.
 Vurderingen (nytte / innsats) er et forslag fra Claude og kan overprøves.
 
 ## Status nå
 
-- **Til presentasjonen brukes `visuell/` (0.3.2).** 0.3 er testet på iPad: T1–T4 OK. 0.3.2 (notestørrelse, Lyseste/Dypeste) er ikke testet på iPad ennå.
+- **Til presentasjonen brukes `visuell/` (0.3.3).** Testet på iPad: T1–T4 (0.3) og T6 (Lyseste/Dypeste) OK.
+  T5 (notestørrelse) justert i 0.3.3 – ikke sett på iPad ennå.
 - Hovedversjonen i roten (0.4, uten visningsfelt) beholdes uendret.
 - Sandkassa er ikke testet og bygger fortsatt på visuell 0.2 (se 2 og 3–6).
 
 ## Opprydding (etter presentasjonen)
 
 1. **Slette `visuell-0.2/`** (reservekopi) når 0.3 har fungert i presentasjonen.
-2. **Oppdatere sandkassa med alt fra visuell 0.3.2** før den testes (ellers mangler den nyere rettinger).
+2. **Oppdatere sandkassa med alt fra visuell 0.3.3** før den testes (ellers mangler den nyere rettinger).
    Innsats: liten–middels.
 3. **Slette `beta/`** (kopi av 0.4, beholdt for et gammelt Hjem-skjerm-ikon) – når du sier fra.
 4. **Git-grener:** `visuell` og `sandkasse` står på gamle versjoner; `main` har alt. Kan ryddes eller spoles fram.
@@ -39,7 +40,7 @@ Adresse: …/keyboard_customized/sandkasse/
     Vurderes senere. Alternativ hvis det beholdes: bare C-linjene (ingen linjer for de andre tangentene).
 25. **Notestørrelse:** fra 0.3.2 følger den bare linjehøyden (fast ramme G3–C6 + luft, se UTVIKLING.md), ikke tangentene.
     Den blir derfor større med færre linjer og mindre med flere. Alternativ: helt fast størrelse uansett antall linjer.
-    Justeres med ett tall (`FRAME_PAD`) hvis notene bør være litt større eller mindre. Vurder etter presentasjonen
+    Justeres med ett tall (`FRAME_HALF`) hvis notene bør være litt større eller mindre. Vurder etter presentasjonen
     (hvordan så det ut på stor skjerm?).
 26. **Hovedversjonen 0.4:** samme rekkefølge og ord i innstillingene (Lyseste over Dypeste, lyseste tone øverst i lista)?
     Bare hvis du ønsker det – 0.4 skal ellers være uendret.
@@ -89,6 +90,7 @@ Adresse: …/keyboard_customized/sandkasse/
 
 ## Ferdig (for oversikt)
 
+- visuell 0.3.3: notene ett knepp større, notelinjene sentrert i hver linje.
 - visuell 0.3.2: fast notestørrelse (uavhengig av tangentområdet, luft over/under notelinjene og mot skillelinjene);
   innstillinger: «Lyseste tone» over «Dypeste tone», lyseste tone øverst i lista.
 - visuell 0.3.1: notelinjene klar blå og tynne (skilles fra de grå skillelinjene); ingen forklaringstekst i tomt felt.
