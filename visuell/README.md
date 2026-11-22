@@ -6,6 +6,13 @@ Denne mappen er «det enkleste som funker» til presentasjonen. Nye ideer prøve
 **Åpne:** https://eldarskjorten.github.io/keyboard_customized/visuell/
 **Forrige versjon (0.2), hvis noe ikke virker:** https://eldarskjorten.github.io/keyboard_customized/visuell-0.2/
 
+## Nytt i 0.3.2
+
+- Notene har fast størrelse, uansett hvor mange tangenter som vises. Notelinjene står i midten av hver linje,
+  med luft over og under (plass til toner fra G3 til C6 uten at de når skillelinjene). Notene er litt mindre enn før.
+  Størrelsen følger bare høyden på linjene (antall linjer og vindusstørrelse).
+- Innstillinger: «Lyseste tone» står over «Dypeste tone», og lyseste tone står øverst i lista.
+
 ## Nytt i 0.3.1
 
 - Notelinjene er klar blå og tynne, så de skilles fra de grå skillelinjene mellom linjene i feltet.

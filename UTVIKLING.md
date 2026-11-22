@@ -5,9 +5,9 @@ Les denne først i en ny samtale. Den oppsummerer hva som finnes, hvorfor, og hv
 
 ## Status (22. november 2026)
 
-- Brukeren bruker **`visuell/` (0.3.1)** i presentasjonen om noen dager. 0.3 er testet på iPad (T1–T4 OK).
+- Brukeren bruker **`visuell/` (0.3.2)** i presentasjonen om noen dager. 0.3 er testet på iPad (T1–T4 OK).
 - **Hovedversjonen i roten (0.4, uten visningsfelt) skal beholdes** som den er.
-- Sandkassa er ikke testet ennå og bygger på visuell 0.2. Oppdater den med visuell 0.3.1 før neste test (IDEER.md, 2).
+- Sandkassa er ikke testet ennå og bygger på visuell 0.2. Oppdater den med visuell 0.3.2 før neste test (IDEER.md, 2).
 - Neste runde (kanskje om noen uker): gå gjennom IDEER.md sammen med brukeren og velg hva som skal gjøres.
 
 ## Hva og hvorfor
@@ -22,7 +22,7 @@ Lyden må kunne blandes med andre apper (Bilder, Musikk).
 |---|---|---|
 | …/keyboard_customized/ | rot (`index.html`, `sw.js`, `manifest.webmanifest`, `samples/`, `icons/`) | **Hovedversjonen 0.4, uten visningsfelt. Stabil. Beholdes. Ikke endre uten at brukeren ber om det.** |
 | …/beta/ | `beta/` | Kopi av 0.4 (egne innstillinger) så et gammelt Hjem-skjerm-ikon virker. Kan slettes når brukeren sier fra. |
-| …/visuell/ | `visuell/` | **0.3.1. Versjonen brukeren presenterer med.** Piano + pads + visningsfelt. |
+| …/visuell/ | `visuell/` | **0.3.2. Versjonen brukeren presenterer med.** Piano + pads + visningsfelt. |
 | …/visuell-0.2/ | `visuell-0.2/` | Uendret kopi av visuell 0.2 (reserve). Samme lager som `visuell/`. Kan slettes etter presentasjonen. |
 | …/sandkasse/ | `sandkasse/` | Eksperimenter, **bygger på visuell 0.2**. Nye ideer prøves her før de ev. flyttes til `visuell/`. |
 
@@ -56,6 +56,10 @@ Før større endringer i `visuell/`: lag en reservekopi i egen mappe (som `visue
   Delene ligger i `S.dParts` (`{ id, name, color }`).
 - Farger (`PART_COLORS`): første gang = farge, repetisjon = samme farge blekere, variasjon = striper.
 - Tonehøyde: diatonisk trinn per hvite tangent (`staffPos`); ♯ står på tonen under, ♭ på tonen over.
+- Loddrett ramme (fra 0.3.2): fast G3–C6 + `FRAME_PAD` (4) trinn luft over og under, lik i alle visninger.
+  Trinnet (`step`) = linjehøyde / rammen, så notestørrelsen avhenger bare av linjehøyden (antall linjer, vindu),
+  ikke av tangentområdet eller om Notelinjer er på. Bare toner som spilles utenfor rammen, gjør den større.
+  Rutenett tegnes bare for tangentområdet. Brukeren ønsket dette (faste størrelser, luft mot skillelinjene).
 - Vannrett: fast skala (`step * 12` px/s) som bare krymper i trinn på 1,25 når den lengste linjen ikke får plass.
 - «Angre» bruker øyeblikksbilder (`history`); «Ikke angre likevel» (hold inne Angre) bruker `future`.
   Etter Angre/Frys/ny lasting starter neste tone alltid en ny linje (`fresh`). Navn på linjer er ikke med i Angre.
@@ -74,6 +78,8 @@ Se `tester/README.md` (Playwright). `node tester/med-server.js tester/<test>.js`
 - D5 Farger: beholdes som nå; repetisjon av en variasjon vurderes senere (IDEER.md, 9).
 - Testpunkter T1–T4 (visuell 0.3) OK: knapper/vindusknapper, C-farge, bilder i linjer, hold inne Angre.
 - Sandkassa testes etter presentasjonen, ikke parallelt.
+- Notestørrelse: fast, uavhengig av antall tangenter (0.3.2). Rutenett vurderes senere (IDEER.md, 24).
+- Innstillinger: «Lyseste tone» over «Dypeste tone», lyseste tone øverst i lista (ord og rekkefølge som på noter).
 
 ## Ideer, opprydding og visjon
 

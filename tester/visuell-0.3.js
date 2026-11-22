@@ -43,6 +43,7 @@ const KEY = 'piano.settings.visuell.v1';
   const keyAt = (m) => p.evaluate((m) => { const k = window.__piano.keys().find((k) => k.midi === m); const r = k.el.getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height - 20 }; }, m);
   const play = async (ms, hold = 150) => { for (const m of ms) { const k = await keyAt(m); await tap(k.x, k.y, hold); } };
   const rows = () => p.evaluate(() => window.__piano.Vis.rows().map((r) => r.notes.map((n) => n.midi).join(',')));
+  const geo = () => p.evaluate(() => { window.__piano.Vis.draw(); return new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => r(window.__piano.Vis.geo())))); });
   const settings = async (fn) => {
     await btn('#btnSettings'); await p.waitForTimeout(150);
     await fn();
@@ -150,6 +151,36 @@ const KEY = 'piano.settings.visuell.v1';
   await settings(async () => { await p.selectOption('#selImgLay', 'one'); });
   ok(await p.evaluate(() => getComputedStyle(document.getElementById('dImg')).display !== 'none' && !!document.getElementById('dImg').getAttribute('src')), '«Ett og ett» viser ett bilde i hele feltet');
   await p.screenshot({ path: SH + 'v3-bilder-ett.png' });
+
+  // 6) 0.3.2: fast notestørrelse uavhengig av tangentområdet; Lyseste over Dypeste i innstillingene
+  await btn('.seg .dbtn[data-mode="live"]');
+  await settings(async () => {
+    await p.selectOption('#selSide', 'side');
+    await p.selectOption('#selRows', '5');
+    await p.selectOption('#selHi', '84'); await p.selectOption('#selLo', '55');
+    const order = await p.evaluate(() => {
+      const hi = document.getElementById('selHi'), lo = document.getElementById('selLo');
+      return { hiFirst: hi.compareDocumentPosition(lo) & Node.DOCUMENT_POSITION_FOLLOWING ? true : false,
+        top: hi.options[0].textContent, bottom: hi.options[hi.options.length - 1].textContent,
+        labels: [...document.querySelectorAll('label[for="selHi"], label[for="selLo"]')].map((l) => l.textContent).join(' / ') };
+    });
+    ok(order.hiFirst && order.top === 'C8' && order.bottom === 'A0' && order.labels === 'Lyseste tone / Dypeste tone',
+      'innstillinger: lyseste over dypeste, høyeste tone øverst: ' + JSON.stringify(order));
+  });
+  if (!(await S()).dGrid || (await S()).dGrid !== 'staff') await btn('#dGridStaff');
+  await btn('#dClear');
+  await p.evaluate(() => {
+    const r = window.__piano.Vis.rows(); const sc = [55, 57, 59, 60, 62, 64, 65, 67, 69, 71, 72, 74, 76, 77, 79, 81, 83, 84];
+    r.push({ id: 999, t0: null, label: null, notes: sc.map((m, i) => ({ midi: m, t: i * 260, held: false })) });
+  });
+  const st1 = (await geo()).step;
+  await p.screenshot({ path: SH + 'v3-skala-G3-C6.png' });
+  await p.evaluate(() => { const P = window.__piano; P.S.lo = 60; P.S.hi = 72; });
+  const st2 = (await geo()).step;
+  await p.evaluate(() => { const P = window.__piano; P.S.dGrid = 'off'; });
+  const st3 = (await geo()).step;
+  ok(Math.abs(st1 - st2) < 0.001 && Math.abs(st1 - st3) < 0.001, 'samme notestørrelse med andre tangenter og uten notelinjer: ' + [st1, st2, st3].map((x) => x.toFixed(2)).join(', '));
+  await p.evaluate(() => { const P = window.__piano; P.S.dGrid = 'staff'; P.S.lo = 55; P.S.hi = 84; });
 
   ok(errs.length === 0, 'ingen feil i konsollen ' + (errs.length ? JSON.stringify(errs) : ''));
   console.log(fails ? fails + ' FEIL' : 'ALT OK');
