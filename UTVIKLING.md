@@ -5,7 +5,8 @@ Les denne først i en ny samtale. Den oppsummerer hva som finnes, hvorfor, og hv
 
 ## Status (22. november 2026)
 
-- Brukeren bruker **`visuell/` (0.3.3)** i presentasjonen om noen dager. 0.3 er testet på iPad (T1–T4 OK).
+- Brukeren bruker **`visuell/` (0.3.3)** i presentasjonen. Godkjent: «Perfekt. Klar til presentasjon.» (T1–T6 OK).
+- Oppsett: iPad til ekstern skjerm/TV, helst HDMI og lyd via minijack. Bluetooth-lyd testet: forsinkelsen er til å leve med.
 - **Hovedversjonen i roten (0.4, uten visningsfelt) skal beholdes** som den er.
 - Sandkassa er ikke testet ennå og bygger på visuell 0.2. Oppdater den med visuell 0.3.3 før neste test (IDEER.md, 2).
 - Neste runde (kanskje om noen uker): gå gjennom IDEER.md sammen med brukeren og velg hva som skal gjøres.
@@ -80,7 +81,7 @@ Se `tester/README.md` (Playwright). `node tester/med-server.js tester/<test>.js`
 - D5 Farger: beholdes som nå; repetisjon av en variasjon vurderes senere (IDEER.md, 9).
 - Testpunkter T1–T4 (visuell 0.3) OK: knapper/vindusknapper, C-farge, bilder i linjer, hold inne Angre.
 - Sandkassa testes etter presentasjonen, ikke parallelt.
-- Notestørrelse: fast, uavhengig av antall tangenter (0.3.2); ett knepp større og notelinjene sentrert (0.3.3). T6 OK. Rutenett vurderes senere (IDEER.md, 24).
+- Notestørrelse: fast, uavhengig av antall tangenter (0.3.2); ett knepp større og notelinjene sentrert (0.3.3). T5 og T6 OK. Rutenett vurderes senere (IDEER.md, 24).
 - Innstillinger: «Lyseste tone» over «Dypeste tone», lyseste tone øverst i lista (ord og rekkefølge som på noter).
 
 ## Ideer, opprydding og visjon

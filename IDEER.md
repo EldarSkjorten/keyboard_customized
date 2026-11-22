@@ -8,8 +8,8 @@ Vurderingen (nytte / innsats) er et forslag fra Claude og kan overprøves.
 
 ## Status nå
 
-- **Til presentasjonen brukes `visuell/` (0.3.3).** Testet på iPad: T1–T4 (0.3) og T6 (Lyseste/Dypeste) OK.
-  T5 (notestørrelse) justert i 0.3.3 – ikke sett på iPad ennå.
+- **Til presentasjonen brukes `visuell/` (0.3.3).** Testet og godkjent på iPad (T1–T6 OK), også på TV som ekstern skjerm.
+  Brukeren sa «Perfekt. Klar til presentasjon.»
 - Hovedversjonen i roten (0.4, uten visningsfelt) beholdes uendret.
 - Sandkassa er ikke testet og bygger fortsatt på visuell 0.2 (se 2 og 3–6).
 
