@@ -220,12 +220,22 @@
   body.disp #pads { flex: 0 0 auto; height: clamp(44px, 12vh, 110px); }
   body.disp #kb { flex: 0 0 auto; height: clamp(100px, 36vh, 340px); }
   :root { --paper: #fdfcf8; --ink: #1d2026; --ink-held: #2f6fb5; }
+  /* Visningsfeltet til venstre for pads og tangenter (valg i innstillinger) */
+  body.disp.side #main {
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto auto; /* tomrom øverst til høyre, som ellers i høye vinduer */
+  }
+  body.disp.side #display { grid-column: 1; grid-row: 1 / span 3; min-height: 0; }
+  body.disp.side #pads { grid-column: 2; grid-row: 2; height: clamp(60px, 24vh, 170px); }
+  body.disp.side #kb { grid-column: 2; grid-row: 3; height: 62vh; }
   .dbar {
     flex: 0 0 auto;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
+    gap: 5px 8px;
     padding: 5px 6px;
     border-bottom: 1px solid #ebe8df;
   }
@@ -242,8 +252,49 @@
     cursor: pointer;
   }
   .seg .dbtn.on { background: #fff; color: #1d2026; box-shadow: 0 1px 2px rgba(0,0,0,0.15); }
-  .dtools { display: flex; align-items: center; gap: 4px; }
+  .dtools { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 5px 12px; }
+  .dgroup { display: flex; align-items: center; gap: 4px; }
   .dtools .dbtn { background: #ecebe6; }
+  .dtools .dbtn.on { background: #2f6fb5; color: #fff; }
+  .dtools .dbtn.dim { opacity: 0.45; }
+  /* Meny for navn på en linje */
+  #dMenu {
+    position: fixed; z-index: 40;
+    background: #fff; color: #1d2026;
+    border-radius: 12px;
+    box-shadow: 0 10px 34px rgba(0,0,0,0.32), 0 0 0 1px rgba(0,0,0,0.06);
+    padding: 8px;
+    width: min(360px, calc(100vw - 16px));
+    max-height: calc(100vh - 16px);
+    overflow-y: auto;
+    -webkit-user-select: none; user-select: none;
+  }
+  #dMenu[hidden] { display: none; }
+  #dMenu .mhead { font: 600 12px/1.2 -apple-system, system-ui, sans-serif; color: #6b7079; padding: 2px 4px 8px; }
+  #dMenu .mrow { display: grid; grid-template-columns: 1.15fr 1fr 1fr; gap: 5px; margin-bottom: 5px; }
+  #dMenu .mbtn {
+    border: 0; border-radius: 8px;
+    min-height: 44px; padding: 6px 6px;
+    font: 600 14px/1.15 -apple-system, system-ui, sans-serif;
+    cursor: pointer; touch-action: manipulation;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  #dMenu .mbtn small { display: block; font-weight: 500; font-size: 11px; opacity: 0.75; }
+  #dMenu .mbtn.sel { box-shadow: inset 0 0 0 2.5px #1d2026; }
+  #dMenu .mbtn.none { width: 100%; background: #f1f0ec; color: #4a4f58; }
+  /* Innstillinger: deler */
+  .parts { display: grid; gap: 6px; }
+  .part { display: flex; align-items: center; gap: 6px; }
+  .part .swatch { flex: 0 0 auto; width: 46px; height: 38px; border-radius: 9px; border: 1px solid rgba(0,0,0,0.25); cursor: pointer; }
+  .card { min-width: 0; }
+  @media (min-width: 640px) { .card.wide { grid-column: span 2; } }
+  .part input[type=text] {
+    flex: 1 1 auto; min-width: 0; width: 0;
+    font: inherit; font-size: 16px; color: var(--text);
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px;
+  }
+  .part .mini { flex: 0 0 auto; width: 38px; height: 38px; padding: 0; font-size: 15px; }
+  .btnrow { display: flex; gap: 8px; }
   .dtools .count { font: 600 13px/1 -apple-system, system-ui, sans-serif; color: #6b7079; min-width: 46px; text-align: center; font-variant-numeric: tabular-nums; }
   body:not(.mode-live) .live-only, body:not(.mode-img) .img-only { display: none; }
   body.mode-img #display { background: #fff; }
@@ -367,9 +418,18 @@
           <button class="dbtn" data-mode="img" role="tab">Bilder</button>
         </div>
         <div class="dtools live-only">
-          <button class="dbtn" id="dNewRow">Ny linje</button>
-          <button class="dbtn" id="dUndo">Angre</button>
-          <button class="dbtn" id="dClear">Tøm</button>
+          <div class="dgroup">
+            <button class="dbtn" id="dGridKeys" aria-pressed="false">Rutenett</button>
+            <button class="dbtn" id="dGridStaff" aria-pressed="false">Notelinjer</button>
+          </div>
+          <div class="dgroup">
+            <button class="dbtn" id="dFreeze" aria-pressed="false">Frys</button>
+          </div>
+          <div class="dgroup">
+            <button class="dbtn" id="dNewRow">Ny linje</button>
+            <button class="dbtn" id="dUndo">Angre</button>
+            <button class="dbtn" id="dClear">Tøm</button>
+          </div>
         </div>
         <div class="dtools img-only">
           <button class="dbtn" id="dPrev" aria-label="Forrige bilde">‹</button>
@@ -390,6 +450,12 @@
     </div>
     <div id="kb" aria-label="Pianotangenter"></div>
   </div>
+</div>
+
+<div id="dMenu" hidden role="menu" aria-label="Navn på linjen">
+  <div class="mhead" id="dMenuHead">Linje</div>
+  <div id="dMenuList"></div>
+  <button class="mbtn none" id="dMenuNone">Uten navn</button>
 </div>
 
 <div id="start" role="button" aria-label="Start pianoet">
@@ -460,10 +526,17 @@
       <p class="hint">Ett trykk starter akkorden, trykk på samme pad igjen for å stoppe (kort fade). Pads følger transponeringen. Sustain påvirker ikke pads.</p>
     </section>
 
-    <section class="card">
-      <h2>Visning (skisse)</h2>
+    <section class="card wide">
+      <h2>Visning</h2>
       <div class="field">
         <label class="check"><input type="checkbox" id="chkDisp"> Vis visningsfelt over pads og tangenter</label>
+      </div>
+      <div class="field">
+        <label for="selSide">Plassering av visningsfeltet</label>
+        <select id="selSide">
+          <option value="top">Over pads og tangenter</option>
+          <option value="side">Til venstre for pads og tangenter</option>
+        </select>
       </div>
       <div class="field">
         <label for="selGap">«Spill»: ny linje etter pause</label>
@@ -479,8 +552,17 @@
         <label for="selRows">«Spill»: antall linjer</label>
         <select id="selRows">
           <option value="2">2</option><option value="3">3</option><option value="4">4</option>
-          <option value="5">5</option><option value="6">6</option>
+          <option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option>
         </select>
+      </div>
+      <div class="field">
+        <label>«Spill»: deler (navn og farge)</label>
+        <div id="partsList" class="parts"></div>
+        <div class="btnrow">
+          <button class="btn" id="btnAddPart">+ Legg til del</button>
+          <button class="btn" id="btnResetParts">Tilbakestill</button>
+        </div>
+        <p class="hint">Trykk på fargen for å bytte farge. Hver del får automatisk «Repetisjon» (samme farge, blekere) og «Variasjon» (samme farge, stripete). Gi en linje navn ved å trykke i venstre felt i «Spill».</p>
       </div>
       <div class="field">
         <label class="check"><input type="checkbox" id="chkNames"> «Spill»: vis tonenavn under notene</label>
@@ -518,8 +600,10 @@
 (() => {
   'use strict';
 
-  const VERSION = 'visuell-skisse 0.1 (bygger på 0.4)';
+  const VERSION = 'visuell 0.2 (bygger på 0.4)';
   const STORE_KEY = 'piano.settings.visuell.v1';
+  const ROWS_KEY = 'piano.visuell.rows.v1';   // det som står i «Spill»-feltet
+  const IMG_DB = 'piano-visuell';             // egne bilder (IndexedDB)
 
   // ---------- Noter og navn ----------
   const MIDI_MIN = 21;   // A0
@@ -545,7 +629,35 @@
 
   // ---------- Innstillinger ----------
   const DEFAULTS = { lo: 60, hi: 84, tAmt: 4, tOn: false, vol: 75, rev: 0, sLen: 7, pads: true, pVol: 70, pRev: 30,
-    disp: true, dMode: 'live', dGap: 2, dRows: 4, dNames: false, dImg: 0 };
+    disp: true, dMode: 'live', dGap: 2, dRows: 4, dNames: false, dImg: 0,
+    dGrid: 'off', dFrozen: false, dParts: null, dSide: false };
+  // Fargene til deler: lyse pastellfarger. Repetisjon = samme farge, blekere. Variasjon = striper.
+  const PART_COLORS = {
+    blue: ['Blå', 212, 62], green: ['Grønn', 132, 45], yellow: ['Gul', 46, 85], orange: ['Oransje', 24, 80],
+    pink: ['Rosa', 336, 62], purple: ['Lilla', 264, 50], teal: ['Turkis', 180, 45], grey: ['Grå', 40, 6],
+  };
+  const DEFAULT_PARTS = [
+    { id: 'p1', name: 'Motiv', color: 'blue' },
+    { id: 'p2', name: 'Kontrast', color: 'orange' },
+    { id: 'p3', name: 'Slutt', color: 'purple' },
+  ];
+  const defaultParts = () => DEFAULT_PARTS.map((x) => Object.assign({}, x));
+  function sanitizeParts(v) {
+    if (!Array.isArray(v)) return defaultParts();
+    const out = [], ids = new Set();
+    for (const x of v.slice(0, 12)) {
+      if (!x || typeof x !== 'object') continue;
+      let id = typeof x.id === 'string' && /^[a-z0-9]{1,12}$/.test(x.id) ? x.id : '';
+      if (!id || ids.has(id)) { let k = 1; while (ids.has('p' + k)) k++; id = 'p' + k; }
+      ids.add(id);
+      out.push({
+        id,
+        name: typeof x.name === 'string' ? x.name.slice(0, 24) : '',
+        color: Object.prototype.hasOwnProperty.call(PART_COLORS, x.color) ? x.color : 'grey',
+      });
+    }
+    return out;
+  }
   const clampInt = (v, a, b, d) => {
     v = Math.round(Number(v));
     return Number.isFinite(v) ? Math.min(b, Math.max(a, v)) : d;
@@ -568,9 +680,13 @@
     o.disp = s.disp !== false;
     o.dMode = s.dMode === 'img' ? 'img' : 'live';
     o.dGap = [0, 1.5, 2, 3, 4].includes(Number(s.dGap)) ? Number(s.dGap) : DEFAULTS.dGap;
-    o.dRows = clampInt(s.dRows, 2, 6, DEFAULTS.dRows);
+    o.dRows = clampInt(s.dRows, 2, 8, DEFAULTS.dRows);
     o.dNames = s.dNames === true;
     o.dImg = clampInt(s.dImg, 0, 9999, 0);
+    o.dGrid = ['off', 'keys', 'staff'].includes(s.dGrid) ? s.dGrid : 'off';
+    o.dFrozen = s.dFrozen === true;
+    o.dSide = s.dSide === true;
+    o.dParts = sanitizeParts(s.dParts);
     return o;
   }
   function loadSettings() {
@@ -578,7 +694,7 @@
       const raw = localStorage.getItem(STORE_KEY);
       return sanitize(Object.assign({}, DEFAULTS, raw ? JSON.parse(raw) : {}));
     } catch (e) {
-      return Object.assign({}, DEFAULTS);
+      return sanitize(DEFAULTS);
     }
   }
   function saveSettings() {
@@ -1430,6 +1546,7 @@
   }
   function openSettings() {
     releaseAllTouches();
+    Vis.closeMenu();
     renderSettings();
     refreshOfflineStatus();
     settingsEl.hidden = false;
@@ -1532,39 +1649,80 @@
     const empty = document.getElementById('dEmpty');
     const count = document.getElementById('dCount');
     const segBtns = [...document.querySelectorAll('.seg .dbtn')];
-    const LABELS = ['', 'Motiv', 'Repetisjon', 'Variasjon', 'Kontrast', 'Slutt'];
     const WHITE_IDX = { 0: 0, 2: 1, 4: 2, 5: 3, 7: 4, 9: 5, 11: 6 };
     const dia = (m) => Math.floor(m / 12) * 7 + WHITE_IDX[pc(m)];
     function staffPos(m) {
       if (isWhite(m)) return { pos: dia(m), acc: '' };
       return PC_NAME[pc(m)].includes('#') ? { pos: dia(m - 1), acc: '♯' } : { pos: dia(m + 1), acc: '♭' };
     }
+    const STAFF_LO = dia(64), STAFF_HI = dia(77); // G-nøkkel: nederste linje E4, øverste linje F5
+
+    // ----- Farger for deler -----
+    const KIND_NAME = { r: 'Repetisjon', v: 'Variasjon' };
+    function tones(color) {
+      const c = PART_COLORS[color] || PART_COLORS.grey;
+      const h = c[1], sat = c[2];
+      return {
+        strong: 'hsl(' + h + ',' + sat + '%,79%)',
+        base: 'hsl(' + h + ',' + sat + '%,87%)',
+        pale: 'hsl(' + h + ',' + sat + '%,94%)',
+        ink: 'hsl(' + h + ',' + Math.min(sat, 45) + '%,27%)',
+      };
+    }
+    const partById = (id) => S.dParts.find((x) => x.id === id) || null;
+    const partName = (p) => (p.name || '').trim() || 'Del';
+    // Gyldig navn på en linje, eller null (f.eks. hvis delen er slettet)
+    function labelOf(r) {
+      if (!r || !r.label) return null;
+      const p = partById(r.label.p);
+      return p ? { part: p, kind: r.label.k, t: tones(p.color) } : null;
+    }
+    // Fyller et felt: første gang = full farge, repetisjon = blekere, variasjon = blek med striper
+    function fillKind(x, y, w, h, t, kind, strong) {
+      const full = strong ? t.strong : t.base, light = strong ? t.base : t.pale;
+      g.fillStyle = kind === 'o' ? full : light;
+      g.fillRect(x, y, w, h);
+      if (kind !== 'v') return;
+      g.save();
+      g.beginPath(); g.rect(x, y, w, h); g.clip();
+      g.strokeStyle = full; g.lineWidth = 7;
+      g.beginPath();
+      for (let k = x - h; k < x + w + h; k += 18) { g.moveTo(k, y + h); g.lineTo(k + h, y); }
+      g.stroke();
+      g.restore();
+    }
 
     // ----- «Spill» -----
-    let rows = [];            // { t0, label, notes: [{ midi, t, held }] }
+    let rows = [];            // { id, t0, label: null | { p: del-id, k: 'o' | 'r' | 'v' }, notes: [{ midi, t, held }] }
     const history = [];       // for «Angre»
     const held = new Map();   // berørings-id -> note
     let lastOff = 0;
+    let fresh = false;        // neste tone starter en ny linje (etter Angre, Frys av o.l.)
+    let nextId = 1;
     const live = () => S.disp && S.dMode === 'live';
-    const copyRows = () => rows.map((r) => ({ t0: r.t0, label: r.label, notes: r.notes.map((n) => ({ midi: n.midi, t: n.t, held: false })) }));
+    const copyRows = () => rows.map((r) => ({
+      id: r.id, t0: null, label: r.label ? { p: r.label.p, k: r.label.k } : null,
+      notes: r.notes.map((n) => ({ midi: n.midi, t: n.t, held: false })),
+    }));
     function remember() { history.push(copyRows()); if (history.length > 40) history.shift(); }
     function addRow() {
       remember();
-      rows.push({ t0: null, label: '', notes: [] });
+      rows.push({ id: nextId++, t0: null, label: null, notes: [] });
       while (rows.length > S.dRows) rows.shift();
     }
     function down(id, midi) {
-      if (!live()) return;
+      if (!live() || S.dFrozen) return;
       const now = performance.now();
       const last = rows[rows.length - 1];
       const pause = S.dGap > 0 && held.size === 0 && lastOff > 0 && now - lastOff > S.dGap * 1000;
-      if (!last || (pause && last.notes.length)) addRow();
+      if (!last || ((pause || fresh) && last.notes.length)) addRow();
+      fresh = false;
       const row = rows[rows.length - 1];
-      if (row.t0 === null) row.t0 = now;
+      if (row.t0 === null) row.t0 = now - (row.notes.length ? row.notes[row.notes.length - 1].t + 400 : 0);
       const n = { midi, t: now - row.t0, held: true };
       row.notes.push(n);
       held.set(id, n);
-      draw();
+      changed();
     }
     function up(id) {
       const n = held.get(id);
@@ -1572,32 +1730,93 @@
       held.delete(id);
       n.held = false;
       lastOff = performance.now();
-      draw();
+      changed();
     }
     function newRow() {
+      if (S.dFrozen) { S.dFrozen = false; saveSettings(); apply(); }
       const last = rows[rows.length - 1];
       if (last && !last.notes.length) return; // en tom linje står allerede klar
       addRow();
-      draw();
+      fresh = false;
+      changed();
     }
     function undo() {
       held.clear();
-      rows = history.length ? history.pop() : [];
+      if (history.length) {
+        const labels = new Map(rows.map((r) => [r.id, r.label]));
+        rows = history.pop();
+        for (const r of rows) if (labels.has(r.id)) r.label = labels.get(r.id);
+      } else {
+        rows.pop();
+      }
       lastOff = 0;
-      draw();
+      fresh = true; // neste tone havner på en ny linje, ikke på linjen over
+      changed();
     }
     function clear() {
+      if (S.dFrozen) { S.dFrozen = false; saveSettings(); apply(); }
       if (!rows.length) return;
       remember();
       rows = [];
       held.clear();
       lastOff = 0;
+      fresh = false;
+      changed();
+    }
+    function setFrozen(on) {
+      S.dFrozen = on;
+      saveSettings();
+      if (!on) { fresh = true; lastOff = 0; }
+      held.forEach((n) => { n.held = false; });
+      held.clear();
+      apply();
+    }
+    function setGrid(mode) {
+      S.dGrid = S.dGrid === mode ? 'off' : mode;
+      saveSettings();
+      apply();
+    }
+
+    // Det som står i feltet, huskes (også om siden lastes på nytt)
+    let saveTimer = 0;
+    function changed() {
       draw();
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(saveRows, 400);
+    }
+    function saveRows() {
+      try {
+        localStorage.setItem(ROWS_KEY, JSON.stringify({
+          v: 1,
+          rows: rows.map((r) => ({ l: r.label, n: r.notes.map((n) => [n.midi, Math.round(n.t)]) })),
+        }));
+      } catch (e) { /* privat modus o.l. */ }
+    }
+    function loadRows() {
+      try {
+        const d = JSON.parse(localStorage.getItem(ROWS_KEY) || 'null');
+        if (!d || !Array.isArray(d.rows)) return;
+        rows = d.rows.slice(-8).map((r) => ({
+          id: nextId++, t0: null,
+          label: r.l && typeof r.l.p === 'string' && ['o', 'r', 'v'].includes(r.l.k) ? { p: r.l.p, k: r.l.k } : null,
+          notes: (Array.isArray(r.n) ? r.n : [])
+            .filter((x) => Array.isArray(x) && Number.isFinite(x[0]) && Number.isFinite(x[1]) && x[0] >= MIDI_MIN && x[0] <= MIDI_MAX)
+            .map((x) => ({ midi: Math.round(x[0]), t: Math.max(0, x[1]), held: false })),
+        }));
+        while (rows.length > S.dRows) rows.shift();
+        fresh = rows.length > 0;
+      } catch (e) { rows = []; }
     }
 
     let raf = 0;
     function draw() { if (!raf) raf = requestAnimationFrame(render); }
     let geo = null; // siste tegning, brukes til å finne linje ved trykk
+    function fitFont(text, weight, size, maxW) {
+      g.font = weight + ' ' + size + 'px -apple-system, system-ui, sans-serif';
+      const w = g.measureText(text).width;
+      if (w > maxW) { size = Math.max(8, size * maxW / w); g.font = weight + ' ' + size + 'px -apple-system, system-ui, sans-serif'; }
+      return size;
+    }
     function render() {
       raf = 0;
       if (!S.disp) return;
@@ -1611,58 +1830,117 @@
       if (S.dMode !== 'live') return;
       const nRows = S.dRows;
       const rowH = H / nRows;
-      const gutter = Math.round(Math.min(112, Math.max(56, W * 0.11)));
-      const padL = 26, padR = 26;
-      const pLo = staffPos(S.lo).pos, pHi = staffPos(S.hi).pos;
+      const gutter = Math.round(Math.min(120, Math.max(60, W * 0.12)));
+
+      // Loddrett område: tangentområdet (+ notelinjene, + toner som ligger utenfor)
+      let pLo = staffPos(S.lo).pos, pHi = staffPos(S.hi).pos;
+      if (S.dGrid === 'staff') { pLo = Math.min(pLo, STAFF_LO); pHi = Math.max(pHi, STAFF_HI); }
+      for (const r of rows) for (const n of r.notes) { const p = staffPos(n.midi).pos; pLo = Math.min(pLo, p); pHi = Math.max(pHi, p); }
       const span = Math.max(1, pHi - pLo);
       const nameH = S.dNames ? 16 : 0;
       const step = Math.max(2.5, Math.min(13, (rowH - 14 - nameH) / (span + 2)));
+      const rx = step * 1.4, ry = step * 1.02;
+
+      // Vannrett: fast avstand (følger notestørrelsen). Krymper bare hvis den lengste linjen ikke får plass,
+      // og da i faste trinn, så notene ikke glir mens du spiller.
+      const padL = Math.round(rx + step * 2.2 + 8), padR = Math.round(rx + 10);
+      const avail = Math.max(40, W - gutter - padL - padR);
       let longest = 0;
       for (const r of rows) for (const n of r.notes) longest = Math.max(longest, n.t);
-      // Tidsvinduet velges i trinn, så notene ikke glir sammen mens du spiller
-      const need = longest / 1000 + 0.8;
-      const secs = [4, 6, 8, 12, 16, 24].find((x) => x >= need) || need;
-      const pps = (W - gutter - padL - padR) / secs;
-      geo = { rowH, gutter };
+      const need = longest / 1000 + 0.15;
+      let pps = step * 12; // piksler per sekund
+      while (need * pps > avail && pps > 1) pps /= 1.25;
+      geo = { rowH, gutter, nRows, pps, step };
 
-      // venstre felt med linjenavn
-      g.fillStyle = '#f3f1ea';
-      g.fillRect(0, 0, gutter, H);
+      const yOf = (top, p) => top + (rowH - span * step - nameH) / 2 + (pHi - p) * step;
       for (let i = 0; i < nRows; i++) {
-        const top = i * rowH;
-        if (i > 0 && rows.length) {
-          g.strokeStyle = '#ebe8df'; g.lineWidth = 1;
+        const top = i * rowH, r = rows[i], L = labelOf(r);
+        // bakgrunn
+        if (L) {
+          fillKind(gutter, top, W - gutter, rowH, L.t, L.kind, false);
+          fillKind(0, top, gutter, rowH, L.t, L.kind, true);
+        } else {
+          g.fillStyle = '#f3f1ea';
+          g.fillRect(0, top, gutter, rowH);
+        }
+        // hjelpelinjer
+        if (S.dGrid === 'keys') {
+          for (let p = pLo; p <= pHi; p++) {
+            const y = Math.round(yOf(top, p)) + 0.5, isC = ((p % 7) + 7) % 7 === 0;
+            g.strokeStyle = isC ? 'rgba(40,44,52,0.34)' : 'rgba(40,44,52,0.11)';
+            g.lineWidth = isC ? 1.6 : 1;
+            g.beginPath(); g.moveTo(gutter, y); g.lineTo(W, y); g.stroke();
+            if (isC && step >= 6) {
+              g.font = '600 ' + Math.min(12, step * 1.1) + 'px -apple-system, system-ui, sans-serif';
+              g.fillStyle = 'rgba(40,44,52,0.45)';
+              g.textAlign = 'right'; g.textBaseline = 'bottom';
+              g.fillText('C' + (Math.floor(p / 7) - 1), W - 5, y - 1);
+            }
+          }
+        } else if (S.dGrid === 'staff') {
+          g.strokeStyle = 'rgba(30,33,40,0.6)'; g.lineWidth = 1.2;
+          g.beginPath();
+          for (let p = STAFF_LO; p <= STAFF_HI; p += 2) { const y = Math.round(yOf(top, p)) + 0.5; g.moveTo(gutter + 8, y); g.lineTo(W - 8, y); }
+          g.stroke();
+        }
+        // skillelinje
+        if (i > 0) {
+          g.strokeStyle = 'rgba(60,55,40,0.13)'; g.lineWidth = 1;
           g.beginPath(); g.moveTo(0, Math.round(top) + 0.5); g.lineTo(W, Math.round(top) + 0.5); g.stroke();
         }
-        const r = rows[i];
-        g.textAlign = 'center'; g.textBaseline = 'middle';
-        if (r && r.label) {
-          g.font = '700 ' + Math.min(15, gutter / 6.5) + 'px -apple-system, system-ui, sans-serif';
-          g.fillStyle = '#4b3f8f';
-          g.fillText(r.label, gutter / 2, top + rowH / 2);
+        // navn i venstre felt
+        if (L) {
+          const main = L.kind === 'o' ? partName(L.part) : KIND_NAME[L.kind];
+          const sub = L.kind === 'o' ? '' : partName(L.part);
+          const two = sub && rowH >= 40;
+          g.fillStyle = L.t.ink;
+          g.textAlign = 'center'; g.textBaseline = 'middle';
+          fitFont(main, 700, Math.min(15, rowH / 3.2), gutter - 10);
+          g.fillText(main, gutter / 2, top + rowH / 2 - (two ? 8 : 0));
+          if (two) {
+            fitFont(sub, 500, Math.min(12, rowH / 4), gutter - 10);
+            g.fillText(sub, gutter / 2, top + rowH / 2 + 9);
+          }
         } else if (r) {
           g.font = '600 13px -apple-system, system-ui, sans-serif';
           g.fillStyle = '#b4b0a6';
+          g.textAlign = 'center'; g.textBaseline = 'middle';
           g.fillText(String(i + 1), gutter / 2, top + rowH / 2);
         }
       }
       if (!rows.length) {
-        g.fillStyle = '#9a9ea6';
-        g.font = '500 15px -apple-system, system-ui, sans-serif';
-        g.textAlign = 'center'; g.textBaseline = 'middle';
-        g.fillText('Spill, så vises tonene her.', gutter + (W - gutter) / 2, H / 2 - 11);
+        const cx = gutter + (W - gutter) / 2;
+        const l1 = 'Spill, så vises tonene her.';
+        const l2 = 'Ny linje: knappen «Ny linje» eller en pause. Trykk i venstre felt for å sette navn.';
         g.font = '400 13px -apple-system, system-ui, sans-serif';
-        g.fillText('Ny linje: knappen «Ny linje» eller en pause. Trykk i venstre felt for å sette navn.', gutter + (W - gutter) / 2, H / 2 + 12);
+        const bw = Math.min(W - gutter - 12, Math.max(g.measureText(l2).width, 200) + 24);
+        g.fillStyle = 'rgba(253,252,248,0.92)';
+        g.fillRect(cx - bw / 2, H / 2 - 26, bw, 52);
+        g.fillStyle = '#9a9ea6';
+        g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.font = '500 15px -apple-system, system-ui, sans-serif';
+        g.fillText(l1, cx, H / 2 - 11, W - gutter - 16);
+        g.font = '400 13px -apple-system, system-ui, sans-serif';
+        g.fillText(l2, cx, H / 2 + 12, W - gutter - 16);
         return;
       }
-      const rx = step * 1.4, ry = step * 1.02;
       rows.forEach((r, i) => {
         const top = i * rowH;
-        const bandTop = top + (rowH - span * step - nameH) / 2;
         for (const n of r.notes) {
           const sp = staffPos(n.midi);
           const x = gutter + padL + (n.t / 1000) * pps;
-          const y = bandTop + (pHi - sp.pos) * step;
+          const y = yOf(top, sp.pos);
+          if (S.dGrid === 'staff' && (sp.pos < STAFF_LO - 1 || sp.pos > STAFF_HI + 1)) {
+            // hjelpelinjer (som på noter) for toner over eller under systemet
+            g.strokeStyle = 'rgba(30,33,40,0.6)'; g.lineWidth = 1.2;
+            g.beginPath();
+            const from = sp.pos < STAFF_LO ? STAFF_LO - 2 : STAFF_HI + 2, dir = sp.pos < STAFF_LO ? -2 : 2;
+            for (let q = from; dir < 0 ? q >= sp.pos : q <= sp.pos; q += dir) {
+              const yy = Math.round(yOf(top, q)) + 0.5;
+              g.moveTo(x - rx - step * 0.7, yy); g.lineTo(x + rx + step * 0.7, yy);
+            }
+            g.stroke();
+          }
           g.fillStyle = n.held ? '#2f6fb5' : '#1d2026';
           g.beginPath(); g.ellipse(x, y, rx, ry, -0.33, 0, Math.PI * 2); g.fill();
           if (sp.acc) {
@@ -1672,26 +1950,68 @@
           }
           if (S.dNames) {
             g.font = '600 12px -apple-system, system-ui, sans-serif';
-            g.fillStyle = '#7a7f88';
+            g.fillStyle = '#5f646d';
             g.textAlign = 'center'; g.textBaseline = 'top';
             g.fillText(PC_NAME[pc(n.midi)], x, y + ry + 3);
           }
         }
       });
     }
-    function cycleLabel(y) {
+
+    // ----- Meny: navn på en linje -----
+    const menu = document.getElementById('dMenu');
+    const menuList = document.getElementById('dMenuList');
+    const menuHead = document.getElementById('dMenuHead');
+    const menuNone = document.getElementById('dMenuNone');
+    let menuRow = null;
+    const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    function openMenu(i) {
+      const r = rows[i];
+      if (!r || !geo) return;
+      menuRow = r;
+      menuHead.textContent = 'Linje ' + (i + 1) + ': velg navn';
+      const cur = r.label;
+      menuList.innerHTML = S.dParts.length ? S.dParts.map((p) => {
+        const t = tones(p.color), nm = esc(partName(p));
+        const sel = (k) => (cur && cur.p === p.id && cur.k === k ? ' sel' : '');
+        return '<div class="mrow">' +
+          '<button class="mbtn' + sel('o') + '" data-p="' + p.id + '" data-k="o" style="background:' + t.base + ';color:' + t.ink + '">' + nm + '</button>' +
+          '<button class="mbtn' + sel('r') + '" data-p="' + p.id + '" data-k="r" style="background:' + t.pale + ';color:' + t.ink + '">Repetisjon<small>' + nm + '</small></button>' +
+          '<button class="mbtn' + sel('v') + '" data-p="' + p.id + '" data-k="v" style="background:repeating-linear-gradient(135deg,' + t.base + ' 0 6px,' + t.pale + ' 6px 12.7px);color:' + t.ink + '">Variasjon<small>' + nm + '</small></button>' +
+          '</div>';
+      }).join('') : '<p class="mhead">Ingen deler. Legg til under ⚙ → Visning.</p>';
+      menuNone.classList.toggle('sel', !cur);
+      menu.hidden = false;
+      const sr = stage.getBoundingClientRect();
+      const mh = menu.offsetHeight, mw = menu.offsetWidth;
+      const top = Math.max(8, Math.min(window.innerHeight - mh - 8, sr.top + i * geo.rowH));
+      const left = Math.max(8, Math.min(window.innerWidth - mw - 8, sr.left + geo.gutter + 6));
+      menu.style.top = top + 'px';
+      menu.style.left = left + 'px';
+    }
+    function closeMenu() { menu.hidden = true; menuRow = null; }
+    function pickLabel(label) {
+      if (menuRow) { menuRow.label = label; changed(); }
+      closeMenu();
+    }
+    menuList.addEventListener('click', (e) => {
+      const b = e.target.closest('.mbtn');
+      if (b) pickLabel({ p: b.dataset.p, k: b.dataset.k });
+    });
+    menuNone.addEventListener('click', () => pickLabel(null));
+    const outside = (e) => { if (!menu.hidden && !menu.contains(e.target)) closeMenu(); };
+    document.addEventListener('pointerdown', outside, true);
+    document.addEventListener('touchstart', outside, { capture: true, passive: true });
+    function tapGutter(y) {
       if (!geo) return;
       const i = Math.floor(y / geo.rowH);
-      const r = rows[i];
-      if (!r) return;
-      r.label = LABELS[(LABELS.indexOf(r.label) + 1) % LABELS.length];
-      draw();
+      if (rows[i]) openMenu(i);
     }
 
     // ----- «Bilder» -----
     let images = []; // { name, url }
     let idx = 0;
-    const DB_NAME = 'piano-visuell', STORE = 'images';
+    const DB_NAME = IMG_DB, STORE = 'images';
     function openDb() {
       return new Promise((res, rej) => {
         const r = indexedDB.open(DB_NAME, 1);
@@ -1790,7 +2110,7 @@
       if (S.dMode === 'img') {
         if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) go(dx < 0 ? 1 : -1);
       } else if (Math.abs(dx) < 12 && Math.abs(dy) < 12 && geo && a.x - r.left < geo.gutter) {
-        cycleLabel(a.y - r.top);
+        tapGutter(a.y - r.top);
       }
     }
     document.addEventListener('keydown', (e) => {
@@ -1800,6 +2120,13 @@
     });
 
     segBtns.forEach((b) => onPress(b, () => { S.dMode = b.dataset.mode; saveSettings(); apply(); }));
+    const bGridKeys = document.getElementById('dGridKeys');
+    const bGridStaff = document.getElementById('dGridStaff');
+    const bFreeze = document.getElementById('dFreeze');
+    const bNewRow = document.getElementById('dNewRow');
+    onPress(bGridKeys, () => setGrid('keys'));
+    onPress(bGridStaff, () => setGrid('staff'));
+    onPress(bFreeze, () => setFrozen(!S.dFrozen));
     onPress(document.getElementById('dNewRow'), newRow);
     onPress(document.getElementById('dUndo'), undo);
     onPress(document.getElementById('dClear'), clear);
@@ -1808,9 +2135,17 @@
 
     function apply() {
       document.body.classList.toggle('disp', S.disp);
+      document.body.classList.toggle('side', S.dSide);
       document.body.classList.toggle('mode-live', S.dMode === 'live');
       document.body.classList.toggle('mode-img', S.dMode === 'img');
       segBtns.forEach((b) => b.classList.toggle('on', b.dataset.mode === S.dMode));
+      const tog = (b, on) => { b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); };
+      tog(bGridKeys, S.dGrid === 'keys');
+      tog(bGridStaff, S.dGrid === 'staff');
+      tog(bFreeze, S.dFrozen);
+      bFreeze.textContent = S.dFrozen ? 'Frosset' : 'Frys';
+      bNewRow.classList.toggle('dim', S.dFrozen);
+      if (S.dMode !== 'live' || !S.disp) closeMenu();
       showImage();
       draw();
     }
@@ -1822,19 +2157,74 @@
     const chkNames = document.getElementById('chkNames');
     const outImgs = document.getElementById('outImgs');
     const fileImgs = document.getElementById('fileImgs');
+    const partsList = document.getElementById('partsList');
+    function renderParts() {
+      partsList.innerHTML = S.dParts.map((p, i) =>
+        '<div class="part" data-i="' + i + '">' +
+        '<button class="swatch" data-act="color" style="background:' + tones(p.color).base + '" aria-label="Farge: ' + PART_COLORS[p.color][0] + '. Trykk for neste farge."></button>' +
+        '<input type="text" maxlength="24" value="' + esc(p.name) + '" placeholder="Del" aria-label="Navn på del ' + (i + 1) + '">' +
+        '<button class="btn mini" data-act="up" aria-label="Flytt opp"' + (i === 0 ? ' disabled' : '') + '>▲</button>' +
+        '<button class="btn mini" data-act="down" aria-label="Flytt ned"' + (i === S.dParts.length - 1 ? ' disabled' : '') + '>▼</button>' +
+        '<button class="btn mini" data-act="del" aria-label="Fjern">✕</button>' +
+        '</div>').join('') || '<p class="hint">Ingen deler.</p>';
+    }
+    partsList.addEventListener('click', (e) => {
+      const b = e.target.closest('button');
+      const item = e.target.closest('.part');
+      if (!b || !item) return;
+      const i = Number(item.dataset.i), P = S.dParts;
+      if (b.dataset.act === 'color') {
+        // neste farge som ingen andre deler bruker (ellers bare neste)
+        const keys = Object.keys(PART_COLORS), used = new Set(P.filter((x, k) => k !== i).map((x) => x.color));
+        const from = keys.indexOf(P[i].color);
+        let next = keys[(from + 1) % keys.length];
+        for (let k = 1; k < keys.length; k++) { const c = keys[(from + k) % keys.length]; if (!used.has(c)) { next = c; break; } }
+        P[i].color = next;
+      } else if (b.dataset.act === 'up' && i > 0) {
+        [P[i - 1], P[i]] = [P[i], P[i - 1]];
+      } else if (b.dataset.act === 'down' && i < P.length - 1) {
+        [P[i + 1], P[i]] = [P[i], P[i + 1]];
+      } else if (b.dataset.act === 'del') {
+        P.splice(i, 1);
+      } else return;
+      saveSettings(); renderParts(); draw();
+    });
+    partsList.addEventListener('input', (e) => {
+      const item = e.target.closest('.part');
+      if (!item || e.target.tagName !== 'INPUT') return;
+      S.dParts[Number(item.dataset.i)].name = e.target.value.slice(0, 24);
+      saveSettings(); draw();
+    });
+    document.getElementById('btnAddPart').addEventListener('click', () => {
+      if (S.dParts.length >= 12) return;
+      let k = 1; while (S.dParts.some((p) => p.id === 'p' + k)) k++;
+      const used = new Set(S.dParts.map((p) => p.color));
+      const color = Object.keys(PART_COLORS).find((c) => !used.has(c)) || 'grey';
+      S.dParts.push({ id: 'p' + k, name: 'Del ' + (S.dParts.length + 1), color });
+      saveSettings(); renderParts(); draw();
+    });
+    document.getElementById('btnResetParts').addEventListener('click', () => {
+      if (!window.confirm('Tilbakestille delene til Motiv, Kontrast og Slutt?')) return;
+      S.dParts = defaultParts();
+      saveSettings(); renderParts(); draw();
+    });
+    const selSide = document.getElementById('selSide');
+    selSide.addEventListener('change', () => { S.dSide = selSide.value === 'side'; saveSettings(); apply(); });
     function renderSettings() {
       chkDisp.checked = S.disp;
+      selSide.value = S.dSide ? 'side' : 'top';
       selGap.value = String(S.dGap);
       selRows.value = String(S.dRows);
       chkNames.checked = S.dNames;
+      if (!partsList.contains(document.activeElement)) renderParts();
       outImgs.textContent = images.length ? images.length + ' bilde' + (images.length === 1 ? '' : 'r') + ' lagret' : 'ingen bilder lagret';
     }
     chkDisp.addEventListener('change', () => { S.disp = chkDisp.checked; saveSettings(); apply(); });
     selGap.addEventListener('change', () => { S.dGap = Number(selGap.value); saveSettings(); });
     selRows.addEventListener('change', () => {
       S.dRows = Number(selRows.value); saveSettings();
-      while (rows.length > S.dRows) rows.shift();
-      draw();
+      if (rows.length > S.dRows) { remember(); while (rows.length > S.dRows) rows.shift(); }
+      changed();
     });
     chkNames.addEventListener('change', () => { S.dNames = chkNames.checked; saveSettings(); draw(); });
     document.getElementById('btnPickImgs').addEventListener('click', () => fileImgs.click());
@@ -1851,11 +2241,13 @@
     });
 
     if ('ResizeObserver' in window) new ResizeObserver(() => draw()).observe(stage);
-    window.addEventListener('resize', draw);
+    window.addEventListener('resize', () => { closeMenu(); draw(); });
+    loadRows();
 
     return {
       down, up, draw, apply, loadImages, renderSettings,
-      rows: () => rows, images: () => images, index: () => idx, newRow, undo, clear, go, cycleLabel,
+      rows: () => rows, images: () => images, index: () => idx, newRow, undo, clear, go, tapGutter, setFrozen, setGrid,
+      closeMenu, saveRows, geo: () => geo,
     };
   })();
 
