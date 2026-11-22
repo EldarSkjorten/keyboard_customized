@@ -1,0 +1,2277 @@
+<!doctype html>
+<html lang="no">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Piano 0.2">
+<meta name="theme-color" content="#14161b">
+<meta name="format-detection" content="telephone=no">
+<link rel="apple-touch-icon" href="../icons/icon-180.png">
+<link rel="icon" type="image/png" href="../icons/icon-192.png">
+<title>Piano visuell 0.2</title>
+<style>
+  :root {
+    --bg: #14161b;
+    --panel: #1d2027;
+    --panel-2: #262a33;
+    --line: #353a45;
+    --text: #eef1f5;
+    --muted: #9aa3b2;
+    --sustain: #f2b134;
+    --sustain-ink: #241800;
+    --transp: #4fb3ff;
+    --transp-ink: #03172a;
+    --ok: #36c96b;
+    --warn: #f2c94c;
+    --bad: #ff5555;
+    --white-key: #f7f7f5;
+    --white-key-2: #e6e6e2;
+    --white-down: #bcd6f2;
+    --c-key: #d9dade;      /* C-tangentene er litt grå, så C er lett å finne */
+    --c-key-2: #c9cacf;
+    --black-key: #24262b;
+    --black-key-2: #0c0d10;
+    --black-down: #3d6694;
+  }
+  * {
+    box-sizing: border-box;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  html, body {
+    margin: 0;
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    overflow: hidden;
+    overscroll-behavior: none;
+    touch-action: manipulation;
+  }
+  #app {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    padding: calc(env(safe-area-inset-top) + var(--topbar)) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  }
+  /* Tomt felt langs hele toppen: iPadOS flytter vinduet når du drar i de øverste ca. 30 punktene.
+     Her ligger ingen knapper eller tangenter, så du kan ta tak uten å spille. */
+  :root { --topbar: 30px; }
+  #app::before {
+    content: "";
+    position: absolute;
+    top: calc(env(safe-area-inset-top) + 13px);
+    left: 50%;
+    width: 44px;
+    height: 5px;
+    margin-left: -22px;
+    border-radius: 3px;
+    background: #353a45;
+    pointer-events: none;
+  }
+
+  /* ---------- Kontrollstripe ---------- */
+  #strip {
+    flex: 0 0 auto;
+    width: clamp(54px, 8.5vw, 86px);
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    padding: 5px;
+  }
+  /* Tomrom over Sustain: her ligger iPadOS sine vindusknapper (de tre prikkene) */
+  .grab {
+    flex: 1.1 1 0;
+    min-height: 14px;
+  }
+  .ctl {
+    flex: 2 1 0;
+    min-height: 0;
+    max-height: 150px; /* i høye vinduer går resten av høyden til grep-feltet */
+    width: 100%;
+    border: 0;
+    border-radius: 9px;
+    background: var(--panel-2);
+    color: var(--text);
+    font: 600 clamp(10px, 1.5vw, 15px)/1.1 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 2px;
+    touch-action: none;
+    cursor: pointer;
+    overflow: hidden;
+  }
+  .ctl .big { font-size: 1.45em; font-weight: 700; line-height: 1; }
+  .ctl .small { font-size: 0.82em; opacity: 0.8; }
+  #btnSustain.on { background: var(--sustain); color: var(--sustain-ink); }
+  #btnTransp.on { background: var(--transp); color: var(--transp-ink); }
+  .row { flex: 1.3 1 0; min-height: 0; max-height: 84px; display: flex; gap: 5px; }
+  .row .ctl { flex: 1 1 0; font-size: clamp(14px, 2.2vw, 20px); }
+  #lamp .dot {
+    width: 42%;
+    max-width: 18px;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: #555b66;
+    box-shadow: 0 0 0 2px rgba(255,255,255,0.08);
+  }
+  #lamp.ok .dot { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+  #lamp.loading .dot { background: var(--warn); box-shadow: 0 0 8px var(--warn); }
+  #lamp.bad { background: var(--bad); }
+  #lamp.bad .dot { background: #fff; box-shadow: 0 0 8px #fff; }
+
+  /* ---------- Hovedområde: pads over tangentene ---------- */
+  #main {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end; /* overskytende høyde blir tomrom øverst */
+    gap: 5px;
+    padding: 5px 5px 5px 0;
+  }
+  #pads {
+    flex: 0 0 30%;
+    min-height: 44px;
+    max-height: 160px;
+    display: flex;
+    gap: 5px;
+    touch-action: none;
+  }
+  body.nopads #pads { display: none; }
+  .pad {
+    flex: 1 1 0;
+    min-width: 0;
+    border: 0;
+    border-radius: 10px;
+    background: #2a2440;
+    color: #e6deff;
+    font: 700 clamp(18px, 6vmin, 34px)/1 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    box-shadow: inset 0 0 0 1px rgba(179, 136, 255, 0.28);
+    touch-action: none;
+    cursor: pointer;
+    transition: background-color 0.12s;
+  }
+  .pad.on {
+    background: linear-gradient(180deg, #c3a1ff 0%, #9466f2 100%);
+    color: #1a0a3a;
+    box-shadow: 0 0 14px rgba(179, 136, 255, 0.55);
+  }
+
+  /* ---------- Tangenter ---------- */
+  #kb {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    min-width: 0;
+    touch-action: none;
+    overflow: hidden;
+    border-radius: 4px;
+    background: #000;
+  }
+  .wk, .bk { position: absolute; top: 0; pointer-events: none; }
+  .wk {
+    bottom: 0;
+    background: linear-gradient(180deg, var(--white-key) 0%, var(--white-key) 82%, var(--white-key-2) 100%);
+    border-left: 1px solid #2b2b2b;
+    border-radius: 0 0 5px 5px;
+  }
+  .wk:first-child { border-left: 0; }
+  .wk.c { background: linear-gradient(180deg, var(--c-key) 0%, var(--c-key) 82%, var(--c-key-2) 100%); }
+  .wk.c .lbl { color: #6c717b; }
+  .wk.down { background: linear-gradient(180deg, var(--white-down) 0%, #a9c8ea 100%); }
+  .bk {
+    z-index: 2;
+    background: linear-gradient(180deg, var(--black-key) 0%, var(--black-key-2) 100%);
+    border-radius: 0 0 4px 4px;
+    box-shadow: 0 2px 3px rgba(0,0,0,0.5), inset 0 -3px 0 rgba(255,255,255,0.06);
+  }
+  .bk.down { background: linear-gradient(180deg, var(--black-down) 0%, #274566 100%); }
+  .lbl {
+    position: absolute;
+    left: 0; right: 0; bottom: 6px;
+    text-align: center;
+    font-size: clamp(9px, 1.3vw, 13px);
+    font-weight: 600;
+    color: #8a8f98;
+  }
+
+  /* ---------- Visningsfelt (over pads og tangenter) ---------- */
+  #display { display: none; }
+  body.disp #display {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0;
+    min-height: 110px;
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--paper);
+    color: #2a2d33;
+  }
+  body.disp #main { justify-content: flex-start; }
+  body.disp #pads { flex: 0 0 auto; height: clamp(44px, 12vh, 110px); }
+  body.disp #kb { flex: 0 0 auto; height: clamp(100px, 36vh, 340px); }
+  :root { --paper: #fdfcf8; --ink: #1d2026; --ink-held: #2f6fb5; }
+  /* Visningsfeltet til venstre for pads og tangenter (valg i innstillinger) */
+  body.disp.side #main {
+    display: grid;
+    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto auto; /* tomrom øverst til høyre, som ellers i høye vinduer */
+  }
+  body.disp.side #display { grid-column: 1; grid-row: 1 / span 3; min-height: 0; }
+  body.disp.side #pads { grid-column: 2; grid-row: 2; height: clamp(60px, 24vh, 170px); }
+  body.disp.side #kb { grid-column: 2; grid-row: 3; height: 62vh; }
+  .dbar {
+    flex: 0 0 auto;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 5px 8px;
+    padding: 5px 6px;
+    border-bottom: 1px solid #ebe8df;
+  }
+  .seg { display: flex; background: #ecebe6; border-radius: 8px; padding: 2px; }
+  .dbtn {
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
+    color: #4a4f58;
+    font: 600 13px/1 -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    padding: 7px 11px;
+    min-height: 30px;
+    touch-action: none;
+    cursor: pointer;
+  }
+  .seg .dbtn.on { background: #fff; color: #1d2026; box-shadow: 0 1px 2px rgba(0,0,0,0.15); }
+  .dtools { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 5px 12px; }
+  .dgroup { display: flex; align-items: center; gap: 4px; }
+  .dtools .dbtn { background: #ecebe6; }
+  .dtools .dbtn.on { background: #2f6fb5; color: #fff; }
+  .dtools .dbtn.dim { opacity: 0.45; }
+  /* Meny for navn på en linje */
+  #dMenu {
+    position: fixed; z-index: 40;
+    background: #fff; color: #1d2026;
+    border-radius: 12px;
+    box-shadow: 0 10px 34px rgba(0,0,0,0.32), 0 0 0 1px rgba(0,0,0,0.06);
+    padding: 8px;
+    width: min(360px, calc(100vw - 16px));
+    max-height: calc(100vh - 16px);
+    overflow-y: auto;
+    -webkit-user-select: none; user-select: none;
+  }
+  #dMenu[hidden] { display: none; }
+  #dMenu .mhead { font: 600 12px/1.2 -apple-system, system-ui, sans-serif; color: #6b7079; padding: 2px 4px 8px; }
+  #dMenu .mrow { display: grid; grid-template-columns: 1.15fr 1fr 1fr; gap: 5px; margin-bottom: 5px; }
+  #dMenu .mbtn {
+    border: 0; border-radius: 8px;
+    min-height: 44px; padding: 6px 6px;
+    font: 600 14px/1.15 -apple-system, system-ui, sans-serif;
+    cursor: pointer; touch-action: manipulation;
+    overflow: hidden; text-overflow: ellipsis;
+  }
+  #dMenu .mbtn small { display: block; font-weight: 500; font-size: 11px; opacity: 0.75; }
+  #dMenu .mbtn.sel { box-shadow: inset 0 0 0 2.5px #1d2026; }
+  #dMenu .mbtn.none { width: 100%; background: #f1f0ec; color: #4a4f58; }
+  /* Innstillinger: deler */
+  .parts { display: grid; gap: 6px; }
+  .part { display: flex; align-items: center; gap: 6px; }
+  .part .swatch { flex: 0 0 auto; width: 46px; height: 38px; border-radius: 9px; border: 1px solid rgba(0,0,0,0.25); cursor: pointer; }
+  .card { min-width: 0; }
+  @media (min-width: 640px) { .card.wide { grid-column: span 2; } }
+  .part input[type=text] {
+    flex: 1 1 auto; min-width: 0; width: 0;
+    font: inherit; font-size: 16px; color: var(--text);
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 9px; padding: 8px 10px;
+  }
+  .part .mini { flex: 0 0 auto; width: 38px; height: 38px; padding: 0; font-size: 15px; }
+  .btnrow { display: flex; gap: 8px; }
+  .dtools .count { font: 600 13px/1 -apple-system, system-ui, sans-serif; color: #6b7079; min-width: 46px; text-align: center; font-variant-numeric: tabular-nums; }
+  body:not(.mode-live) .live-only, body:not(.mode-img) .img-only { display: none; }
+  body.mode-img #display { background: #fff; }
+  .dstage { position: relative; flex: 1 1 auto; min-height: 0; touch-action: none; }
+  #dCanvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+  #dImg { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+  body:not(.mode-live) #dCanvas, body:not(.mode-img) #dImg, body:not(.mode-img) #dEmpty { display: none; }
+  #dEmpty {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center; text-align: center;
+    padding: 16px; color: #8a8f98; font-size: 14px; line-height: 1.45;
+  }
+  #dEmpty[hidden] { display: none !important; }
+
+  /* ---------- Startskjerm ---------- */
+  #start {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(12, 13, 17, 0.92);
+    touch-action: none;
+    cursor: pointer;
+  }
+  #start .box { text-align: center; padding: 16px; }
+  #start .play {
+    width: clamp(56px, 12vmin, 96px);
+    aspect-ratio: 1;
+    margin: 0 auto 10px;
+    border-radius: 50%;
+    background: var(--ok);
+    display: flex; align-items: center; justify-content: center;
+  }
+  #start .play::after {
+    content: "";
+    margin-left: 12%;
+    border-style: solid;
+    border-width: 0.9em 0 0.9em 1.5em;
+    border-color: transparent transparent transparent #0b2614;
+    font-size: clamp(12px, 2.6vmin, 20px);
+  }
+  #start .t1 { font-size: clamp(16px, 3.4vmin, 26px); font-weight: 700; }
+  #start .t2 { font-size: clamp(12px, 2.2vmin, 16px); color: var(--muted); margin-top: 4px; }
+
+  /* ---------- Innstillinger ---------- */
+  #settings {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    background: var(--bg);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+    overscroll-behavior: contain;
+  }
+  #settings[hidden] { display: none; }
+  .sbar {
+    position: sticky; top: 0;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 10px;
+    padding: 10px 14px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+    z-index: 1;
+  }
+  .sbar h1 { margin: 0; font-size: 17px; }
+  .sbody {
+    padding: 12px 14px 28px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px;
+  }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+  .card h2 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+  .field { display: grid; gap: 5px; margin-bottom: 12px; }
+  .field:last-child { margin-bottom: 0; }
+  .field label { font-size: 14px; display: flex; justify-content: space-between; gap: 8px; }
+  .field label output { color: var(--muted); font-variant-numeric: tabular-nums; }
+  select, .btn {
+    font: inherit;
+    font-size: 16px;
+    color: var(--text);
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    padding: 9px 10px;
+    width: 100%;
+  }
+  .btn { cursor: pointer; font-weight: 600; touch-action: manipulation; }
+  .btn.primary { background: var(--ok); color: #06210f; border-color: transparent; }
+  .btn.slim { width: auto; padding: 7px 14px; }
+  input[type=range] { width: 100%; accent-color: var(--transp); height: 30px; touch-action: pan-x; }
+  .field label.check { display: flex; justify-content: flex-start; align-items: center; gap: 10px; font-size: 15px; cursor: pointer; }
+  .check input { width: 22px; height: 22px; accent-color: #9466f2; margin: 0; }
+  .hint { font-size: 12.5px; color: var(--muted); line-height: 1.4; margin: 0; }
+  dl.status { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; font-size: 13px; }
+  dl.status dt { color: var(--muted); }
+  dl.status dd { margin: 0; font-variant-numeric: tabular-nums; word-break: break-word; }
+  .credit { font-size: 12px; color: var(--muted); line-height: 1.45; }
+  .credit a { color: var(--transp); }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="strip">
+    <div class="grab" aria-hidden="true"></div>
+    <button id="btnSustain" class="ctl" aria-pressed="false"><span class="big">S</span><span class="small">Sustain</span></button>
+    <button id="btnTransp" class="ctl" aria-pressed="false"><span class="big" id="transpLabel">+4</span><span class="small">Transp.</span></button>
+    <div class="row">
+      <button id="btnSettings" class="ctl" aria-label="Innstillinger">⚙</button>
+      <button id="lamp" class="ctl" aria-label="Lydstatus"><span class="dot"></span></button>
+    </div>
+  </div>
+  <div id="main">
+    <div id="display">
+      <div class="dbar">
+        <div class="seg" role="tablist">
+          <button class="dbtn" data-mode="live" role="tab">Spill</button>
+          <button class="dbtn" data-mode="img" role="tab">Bilder</button>
+        </div>
+        <div class="dtools live-only">
+          <div class="dgroup">
+            <button class="dbtn" id="dGridKeys" aria-pressed="false">Rutenett</button>
+            <button class="dbtn" id="dGridStaff" aria-pressed="false">Notelinjer</button>
+          </div>
+          <div class="dgroup">
+            <button class="dbtn" id="dFreeze" aria-pressed="false">Frys</button>
+          </div>
+          <div class="dgroup">
+            <button class="dbtn" id="dNewRow">Ny linje</button>
+            <button class="dbtn" id="dUndo">Angre</button>
+            <button class="dbtn" id="dClear">Tøm</button>
+          </div>
+        </div>
+        <div class="dtools img-only">
+          <button class="dbtn" id="dPrev" aria-label="Forrige bilde">‹</button>
+          <span class="count" id="dCount">0 / 0</span>
+          <button class="dbtn" id="dNext" aria-label="Neste bilde">›</button>
+        </div>
+      </div>
+      <div class="dstage" id="dStage">
+        <canvas id="dCanvas"></canvas>
+        <img id="dImg" alt="">
+        <div id="dEmpty" hidden>Ingen bilder ennå.<br>Trykk ⚙ → Visning → «Velg bilder …»</div>
+      </div>
+    </div>
+    <div id="pads">
+      <button class="pad" data-pad="0">Bb</button>
+      <button class="pad" data-pad="1">C</button>
+      <button class="pad" data-pad="2">Dm</button>
+    </div>
+    <div id="kb" aria-label="Pianotangenter"></div>
+  </div>
+</div>
+
+<div id="dMenu" hidden role="menu" aria-label="Navn på linjen">
+  <div class="mhead" id="dMenuHead">Linje</div>
+  <div id="dMenuList"></div>
+  <button class="mbtn none" id="dMenuNone">Uten navn</button>
+</div>
+
+<div id="start" role="button" aria-label="Start pianoet">
+  <div class="box">
+    <div class="play"></div>
+    <div class="t1">Trykk for å starte pianoet</div>
+    <div class="t2" id="startHint">Laster lyd …</div>
+  </div>
+</div>
+
+<div id="settings" hidden>
+  <div class="sbar">
+    <h1>Innstillinger</h1>
+    <button class="btn slim primary" id="btnClose">Ferdig</button>
+  </div>
+  <div class="sbody">
+    <section class="card">
+      <h2>Tangenter</h2>
+      <div class="field">
+        <label for="selLo">Laveste tone</label>
+        <select id="selLo"></select>
+      </div>
+      <div class="field">
+        <label for="selHi">Høyeste tone</label>
+        <select id="selHi"></select>
+      </div>
+      <p class="hint" id="rangeInfo"></p>
+    </section>
+
+    <section class="card">
+      <h2>Transponering</h2>
+      <div class="field">
+        <label for="selTransp">Antall halvtoner (brukes når Transp.-knappen er på)</label>
+        <select id="selTransp"></select>
+      </div>
+      <p class="hint">Tangentene ser like ut. Bare lyden flyttes.</p>
+    </section>
+
+    <section class="card">
+      <h2>Piano</h2>
+      <div class="field">
+        <label for="rngVol">Piano-volum <output id="outVol"></output></label>
+        <input type="range" id="rngVol" min="0" max="100" step="1">
+      </div>
+      <div class="field">
+        <label for="rngRev">Piano-romklang (reverb) <output id="outRev"></output></label>
+        <input type="range" id="rngRev" min="0" max="100" step="1">
+      </div>
+      <div class="field">
+        <label for="rngSus">Sustain-lengde (når Sustain er på) <output id="outSus"></output></label>
+        <input type="range" id="rngSus" min="2" max="12" step="1">
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Pads</h2>
+      <div class="field">
+        <label class="check"><input type="checkbox" id="chkPads"> Vis pads over tangentene</label>
+      </div>
+      <div class="field">
+        <label for="rngPadVol">Pad-volum <output id="outPadVol"></output></label>
+        <input type="range" id="rngPadVol" min="0" max="100" step="1">
+      </div>
+      <div class="field">
+        <label for="rngPadRev">Pad-romklang (reverb) <output id="outPadRev"></output></label>
+        <input type="range" id="rngPadRev" min="0" max="100" step="1">
+      </div>
+      <p class="hint">Ett trykk starter akkorden, trykk på samme pad igjen for å stoppe (kort fade). Pads følger transponeringen. Sustain påvirker ikke pads.</p>
+    </section>
+
+    <section class="card wide">
+      <h2>Visning</h2>
+      <div class="field">
+        <label class="check"><input type="checkbox" id="chkDisp"> Vis visningsfelt over pads og tangenter</label>
+      </div>
+      <div class="field">
+        <label for="selSide">Plassering av visningsfeltet</label>
+        <select id="selSide">
+          <option value="top">Over pads og tangenter</option>
+          <option value="side">Til venstre for pads og tangenter</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="selGap">«Spill»: ny linje etter pause</label>
+        <select id="selGap">
+          <option value="0">Av (bare med knappen)</option>
+          <option value="1.5">1,5 sekunder</option>
+          <option value="2">2 sekunder</option>
+          <option value="3">3 sekunder</option>
+          <option value="4">4 sekunder</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="selRows">«Spill»: antall linjer</label>
+        <select id="selRows">
+          <option value="2">2</option><option value="3">3</option><option value="4">4</option>
+          <option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>«Spill»: deler (navn og farge)</label>
+        <div id="partsList" class="parts"></div>
+        <div class="btnrow">
+          <button class="btn" id="btnAddPart">+ Legg til del</button>
+          <button class="btn" id="btnResetParts">Tilbakestill</button>
+        </div>
+        <p class="hint">Trykk på fargen for å bytte farge. Hver del får automatisk «Repetisjon» (samme farge, blekere) og «Variasjon» (samme farge, stripete). Gi en linje navn ved å trykke i venstre felt i «Spill».</p>
+      </div>
+      <div class="field">
+        <label class="check"><input type="checkbox" id="chkNames"> «Spill»: vis tonenavn under notene</label>
+      </div>
+      <div class="field">
+        <label>«Bilder»: <output id="outImgs"></output></label>
+        <input type="file" id="fileImgs" accept="image/*" multiple hidden>
+        <button class="btn" id="btnPickImgs">Velg bilder …</button>
+        <button class="btn" id="btnClearImgs">Fjern alle bilder</button>
+        <p class="hint">Fra Keynote: Del → Eksporter → Bilder (PNG). Bildene vises i filnavn-rekkefølge og lagres på denne iPaden. Safari og Hjem-skjerm-appen har hvert sitt lager, så velg bildene der du skal bruke dem. Lysbilder i bredformat (f.eks. 1920 × 800) fyller feltet best.</p>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Teknisk status (testversjon)</h2>
+      <div class="field">
+        <button class="btn" id="btnRestart">Start lyd på nytt</button>
+        <p class="hint">Bruk denne, eller trykk på lampen, hvis lyden har forsvunnet.</p>
+      </div>
+      <dl class="status" id="statusList"></dl>
+    </section>
+
+    <section class="card credit">
+      Pianolyd: <a href="https://github.com/sfzinstruments/SalamanderGrandPiano" target="_blank" rel="noopener">Salamander Grand Piano V3</a>
+      av Alexander Holm, lisensiert under
+      <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener">CC BY 3.0</a>.
+      Lydfilene er trimmet og konvertert til MP3.
+    </section>
+  </div>
+</div>
+
+<noscript>Pianoet krever JavaScript.</noscript>
+
+<script>
+(() => {
+  'use strict';
+
+  const VERSION = 'visuell 0.2 (reservekopi)';
+  const STORE_KEY = 'piano.settings.visuell.v1';
+  const ROWS_KEY = 'piano.visuell.rows.v1';   // det som står i «Spill»-feltet
+  const IMG_DB = 'piano-visuell';             // egne bilder (IndexedDB)
+
+  // ---------- Noter og navn ----------
+  const MIDI_MIN = 21;   // A0
+  const MIDI_MAX = 108;  // C8
+  const WHITE_PCS = [0, 2, 4, 5, 7, 9, 11];
+  const WHITE_LETTER = { 0: 'C', 2: 'D', 4: 'E', 5: 'F', 7: 'G', 9: 'A', 11: 'H' };
+  // Norsk H for B, engelsk Bb for B-flat
+  const PC_NAME = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'H'];
+  const pc = (m) => ((m % 12) + 12) % 12;
+  const octave = (m) => Math.floor(m / 12) - 1;
+  const isWhite = (m) => WHITE_PCS.includes(pc(m));
+  const whiteName = (m) => WHITE_LETTER[pc(m)] + octave(m);
+
+  // Lydprøver: hver liten terts fra A0 til C8 (30 filer)
+  const SAMPLE_MIDIS = [];
+  for (let m = MIDI_MIN; m <= MIDI_MAX; m += 3) SAMPLE_MIDIS.push(m);
+  const SAMPLE_FILE_NAME = { 0: 'C', 3: 'Ds', 6: 'Fs', 9: 'A' };
+  const sampleUrl = (m) => '../samples/' + SAMPLE_FILE_NAME[pc(m)] + octave(m) + '.mp3';
+  const nearestSample = (n) => {
+    const c = Math.min(MIDI_MAX, Math.max(MIDI_MIN, n));
+    return Math.min(MIDI_MAX, MIDI_MIN + 3 * Math.round((c - MIDI_MIN) / 3));
+  };
+
+  // ---------- Innstillinger ----------
+  const DEFAULTS = { lo: 60, hi: 84, tAmt: 4, tOn: false, vol: 75, rev: 0, sLen: 7, pads: true, pVol: 70, pRev: 30,
+    disp: true, dMode: 'live', dGap: 2, dRows: 4, dNames: false, dImg: 0,
+    dGrid: 'off', dFrozen: false, dParts: null, dSide: false };
+  // Fargene til deler: lyse pastellfarger. Repetisjon = samme farge, blekere. Variasjon = striper.
+  const PART_COLORS = {
+    blue: ['Blå', 212, 62], green: ['Grønn', 132, 45], yellow: ['Gul', 46, 85], orange: ['Oransje', 24, 80],
+    pink: ['Rosa', 336, 62], purple: ['Lilla', 264, 50], teal: ['Turkis', 180, 45], grey: ['Grå', 40, 6],
+  };
+  const DEFAULT_PARTS = [
+    { id: 'p1', name: 'Motiv', color: 'blue' },
+    { id: 'p2', name: 'Kontrast', color: 'orange' },
+    { id: 'p3', name: 'Slutt', color: 'purple' },
+  ];
+  const defaultParts = () => DEFAULT_PARTS.map((x) => Object.assign({}, x));
+  function sanitizeParts(v) {
+    if (!Array.isArray(v)) return defaultParts();
+    const out = [], ids = new Set();
+    for (const x of v.slice(0, 12)) {
+      if (!x || typeof x !== 'object') continue;
+      let id = typeof x.id === 'string' && /^[a-z0-9]{1,12}$/.test(x.id) ? x.id : '';
+      if (!id || ids.has(id)) { let k = 1; while (ids.has('p' + k)) k++; id = 'p' + k; }
+      ids.add(id);
+      out.push({
+        id,
+        name: typeof x.name === 'string' ? x.name.slice(0, 24) : '',
+        color: Object.prototype.hasOwnProperty.call(PART_COLORS, x.color) ? x.color : 'grey',
+      });
+    }
+    return out;
+  }
+  const clampInt = (v, a, b, d) => {
+    v = Math.round(Number(v));
+    return Number.isFinite(v) ? Math.min(b, Math.max(a, v)) : d;
+  };
+  function sanitize(s) {
+    const o = {};
+    o.lo = clampInt(s.lo, MIDI_MIN, MIDI_MAX, DEFAULTS.lo);
+    o.hi = clampInt(s.hi, MIDI_MIN, MIDI_MAX, DEFAULTS.hi);
+    if (!isWhite(o.lo)) o.lo = DEFAULTS.lo;
+    if (!isWhite(o.hi)) o.hi = DEFAULTS.hi;
+    if (o.hi <= o.lo) { o.lo = DEFAULTS.lo; o.hi = DEFAULTS.hi; }
+    o.tAmt = clampInt(s.tAmt, -12, 12, DEFAULTS.tAmt);
+    o.tOn = s.tOn === true;
+    o.vol = clampInt(s.vol, 0, 100, DEFAULTS.vol);
+    o.rev = clampInt(s.rev, 0, 100, DEFAULTS.rev);
+    o.sLen = clampInt(s.sLen, 2, 12, DEFAULTS.sLen);
+    o.pads = s.pads !== false;
+    o.pVol = clampInt(s.pVol, 0, 100, DEFAULTS.pVol);
+    o.pRev = clampInt(s.pRev, 0, 100, DEFAULTS.pRev);
+    o.disp = s.disp !== false;
+    o.dMode = s.dMode === 'img' ? 'img' : 'live';
+    o.dGap = [0, 1.5, 2, 3, 4].includes(Number(s.dGap)) ? Number(s.dGap) : DEFAULTS.dGap;
+    o.dRows = clampInt(s.dRows, 2, 8, DEFAULTS.dRows);
+    o.dNames = s.dNames === true;
+    o.dImg = clampInt(s.dImg, 0, 9999, 0);
+    o.dGrid = ['off', 'keys', 'staff'].includes(s.dGrid) ? s.dGrid : 'off';
+    o.dFrozen = s.dFrozen === true;
+    o.dSide = s.dSide === true;
+    o.dParts = sanitizeParts(s.dParts);
+    return o;
+  }
+  function loadSettings() {
+    try {
+      const raw = localStorage.getItem(STORE_KEY);
+      return sanitize(Object.assign({}, DEFAULTS, raw ? JSON.parse(raw) : {}));
+    } catch (e) {
+      return sanitize(DEFAULTS);
+    }
+  }
+  function saveSettings() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) { /* privat modus o.l. */ }
+  }
+  const S = loadSettings();
+  let sustainOn = false; // starter alltid av
+
+  // ---------- Lydmotor ----------
+  const VOICE_GAIN = 0.5;
+  const RELEASE_TAU = 0.09;   // demping når tangenten slippes (ca. 0,6 s)
+  const RESTRIKE_TAU = 0.035; // samme tone slås an igjen
+  const MAX_VOICES = 48;
+
+  const A = {
+    ctx: null, lim: null, conv: null,
+    bus: null, vol: null, dry: null, send: null, sendOn: false,          // piano
+    padBus: null, padVol: null, padDry: null, padSend: null, padSendOn: false, // pads
+    bytes: new Map(),     // midi -> ArrayBuffer (kodet MP3, beholdes for ev. ny dekoding)
+    fetching: new Map(),  // midi -> Promise<ArrayBuffer>
+    buffers: new Map(),   // midi -> { buf, offset }
+    decoding: new Set(),
+    failed: new Set(),
+    voices: [],
+    lastTime: -1, stallCount: 0, stalled: false,
+    restarts: 0, lastError: '',
+  };
+
+  function setAudioSession() {
+    try {
+      if (navigator.audioSession) navigator.audioSession.type = 'ambient';
+    } catch (e) { /* ikke støttet */ }
+  }
+  setAudioSession();
+
+  function createContext() {
+    setAudioSession();
+    const AC = window.AudioContext || window.webkitAudioContext;
+    let ctx;
+    try { ctx = new AC({ latencyHint: 'interactive' }); } catch (e) { ctx = new AC(); }
+    // Lydkjede:
+    //   piano: stemmer -> bus -> vol -> dry --------> lim -> høyttaler
+    //                                  \-> send -> conv -/
+    //   pads:  akkord  -> padBus -> padVol -> padDry -> lim
+    //                                     \-> padSend -> conv
+    const lim = ctx.createDynamicsCompressor();
+    lim.threshold.value = -3;
+    lim.knee.value = 0;
+    lim.ratio.value = 20;
+    lim.attack.value = 0.002;
+    lim.release.value = 0.2;
+    lim.connect(ctx.destination);
+    const mk = () => ctx.createGain();
+    const bus = mk(), vol = mk(), dry = mk(), send = mk();
+    bus.connect(vol); vol.connect(dry); dry.connect(lim); vol.connect(send);
+    const padBus = mk(), padVol = mk(), padDry = mk(), padSend = mk();
+    padBus.connect(padVol); padVol.connect(padDry); padDry.connect(lim); padVol.connect(padSend);
+    ctx.onstatechange = () => updateStatus();
+    Object.assign(A, {
+      ctx, lim, conv: null,
+      bus, vol, dry, send, sendOn: false,
+      padBus, padVol, padDry, padSend, padSendOn: false,
+      voices: [],
+    });
+    A.lastTime = -1; A.stallCount = 0; A.stalled = false;
+    applyVolume(true);
+    applyReverb(true);
+    return ctx;
+  }
+
+  function unlock() {
+    const ctx = A.ctx;
+    if (!ctx) return;
+    try {
+      const b = ctx.createBuffer(1, 1, ctx.sampleRate);
+      const s = ctx.createBufferSource();
+      s.buffer = b;
+      s.connect(ctx.destination);
+      s.start(0);
+    } catch (e) { /* ignorer */ }
+    tryResume();
+  }
+
+  function tryResume() {
+    const ctx = A.ctx;
+    if (!ctx || ctx.state === 'running' || ctx.state === 'closed') return;
+    try {
+      const p = ctx.resume();
+      if (p && p.catch) p.catch(() => {});
+    } catch (e) { /* ignorer */ }
+  }
+
+  function restartAudio() {
+    releaseAllTouches();
+    stopPadNow();
+    const old = A.ctx;
+    for (const v of A.voices) { try { v.src.stop(); } catch (e) {} }
+    A.voices = [];
+    try { if (old && old.state !== 'closed') old.close(); } catch (e) {}
+    createContext();
+    unlock();
+    A.restarts++;
+    ensureSamples();
+    requestWakeLock();
+    updateStatus();
+  }
+
+  function volumeGain(v) { return 1.6 * Math.pow(v / 100, 2); }
+  function setParam(p, value, instant) {
+    if (instant) p.value = value;
+    else p.setTargetAtTime(value, A.ctx.currentTime, 0.04);
+  }
+  function applyVolume(instant) {
+    if (!A.ctx) return;
+    setParam(A.vol.gain, volumeGain(S.vol), instant);
+    setParam(A.padVol.gain, volumeGain(S.pVol), instant);
+  }
+
+  function makeImpulse(ctx) {
+    // Enkel, mørk romklang (ca. 2,6 s), generert lokalt
+    const rate = ctx.sampleRate;
+    const seconds = 2.6;
+    const len = Math.floor(rate * seconds);
+    const pre = Math.floor(rate * 0.012);
+    const ir = ctx.createBuffer(2, len, rate);
+    let seed = 12345;
+    const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296 * 2 - 1; };
+    for (let ch = 0; ch < 2; ch++) {
+      const d = ir.getChannelData(ch);
+      let lp = 0;
+      for (let i = pre; i < len; i++) {
+        const t = (i - pre) / (len - pre);
+        const c = 0.85 - 0.7 * t;                // mørkere hale over tid
+        lp += c * (rnd() - lp);
+        const env = Math.exp(-t * 5.5) * Math.min(1, (i - pre) / (rate * 0.006));
+        d[i] = lp * env;
+      }
+    }
+    return ir;
+  }
+  // Romklang deles av piano og pads, men hver har sin egen mengde.
+  // En del som står på 0 kobles helt fra romklangen, så den ikke bruker kraft.
+  function applyReverbPart(amount, sendNode, dryNode, flag, instant) {
+    const r = amount / 100;
+    if (r > 0) {
+      if (!A.conv) {
+        A.conv = A.ctx.createConvolver();
+        A.conv.buffer = makeImpulse(A.ctx);
+        A.conv.connect(A.lim);
+      }
+      if (!A[flag]) { sendNode.connect(A.conv); A[flag] = true; }
+    } else if (A[flag]) {
+      try { sendNode.disconnect(A.conv); } catch (e) {}
+      A[flag] = false;
+    }
+    setParam(sendNode.gain, 0.9 * Math.pow(r, 1.3), instant);
+    setParam(dryNode.gain, 1 - 0.25 * r, instant);
+  }
+  function applyReverb(instant) {
+    if (!A.ctx) return;
+    applyReverbPart(S.rev, A.send, A.dry, 'sendOn', instant);
+    applyReverbPart(S.pRev, A.padSend, A.padDry, 'padSendOn', instant);
+  }
+
+  // --- Lasting av lydprøver ---
+  function neededSamples() {
+    const t = S.tAmt;
+    const lo = Math.min(S.lo, S.lo + t);
+    const hi = Math.max(S.hi, S.hi + t);
+    const set = new Set();
+    for (let n = lo; n <= hi; n++) set.add(nearestSample(n));
+    return [...set].sort((a, b) => a - b);
+  }
+  function fetchBytes(m) {
+    if (A.bytes.has(m)) return Promise.resolve(A.bytes.get(m));
+    if (A.fetching.has(m)) return A.fetching.get(m);
+    const p = fetch(sampleUrl(m))
+      .then((r) => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); })
+      .then((ab) => { A.bytes.set(m, ab); return ab; })
+      .finally(() => A.fetching.delete(m));
+    A.fetching.set(m, p);
+    return p;
+  }
+  function decode(ctx, ab) {
+    return new Promise((resolve, reject) => {
+      try {
+        const p = ctx.decodeAudioData(ab, resolve, reject);
+        if (p && p.then) p.then(resolve, reject);
+      } catch (e) { reject(e); }
+    });
+  }
+  function findOnset(buf) {
+    // Finn første hørbare punkt (fjerner stillhet foran tonen og MP3-forsinkelse)
+    const th = 0.002;
+    const rate = buf.sampleRate;
+    const lim = Math.min(buf.length, Math.floor(rate * 0.3));
+    const chans = [];
+    for (let c = 0; c < buf.numberOfChannels; c++) chans.push(buf.getChannelData(c));
+    for (let i = 0; i < lim; i++) {
+      for (const d of chans) {
+        if (Math.abs(d[i]) > th) return Math.max(0, i - Math.round(rate * 0.001)) / rate;
+      }
+    }
+    return 0;
+  }
+  function prefetch() {
+    for (const m of neededSamples()) fetchBytes(m).catch(() => {});
+  }
+  function ensureSamples() {
+    const ctx = A.ctx;
+    if (!ctx) { prefetch(); return; }
+    for (const m of neededSamples()) {
+      if (A.buffers.has(m) || A.decoding.has(m)) continue;
+      A.decoding.add(m);
+      A.failed.delete(m);
+      fetchBytes(m)
+        .then((ab) => decode(ctx, ab.slice(0)))
+        .then((buf) => { A.buffers.set(m, { buf, offset: findOnset(buf) }); })
+        .catch((e) => { A.failed.add(m); A.lastError = 'Lyd ' + sampleUrl(m) + ': ' + (e && e.message ? e.message : e); })
+        .finally(() => { A.decoding.delete(m); updateStatus(); });
+    }
+    updateStatus();
+  }
+  function pickSample(n) {
+    const ideal = nearestSample(n);
+    if (A.buffers.has(ideal)) return ideal;
+    let best = null, bestD = 13;
+    for (const m of A.buffers.keys()) {
+      const d = Math.abs(m - n);
+      if (d < bestD) { best = m; bestD = d; }
+    }
+    return best;
+  }
+
+  // --- Toner ---
+  function noteOn(note) {
+    const ctx = A.ctx;
+    if (!ctx) return null;
+    if (ctx.state !== 'running') tryResume();
+    const sm = pickSample(note);
+    if (sm === null) return null;
+    const { buf, offset } = A.buffers.get(sm);
+    const now = ctx.currentTime;
+
+    // Samme tone slås an på nytt: demp den forrige raskt (som på et ekte piano)
+    for (const v of A.voices) {
+      if (v.note === note && !v.released) dampVoice(v, RESTRIKE_TAU);
+    }
+    // Stemmetak: slipp de eldste (først de som bare klinger med sustain)
+    let active = A.voices.filter((v) => !v.released);
+    while (active.length >= MAX_VOICES) {
+      const victim = active.find((v) => v.state === 'sus') || active.find((v) => !v.held) || active[0];
+      dampVoice(victim, 0.02);
+      active = A.voices.filter((v) => !v.released);
+    }
+
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.playbackRate.value = Math.pow(2, (note - sm) / 12);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, now);
+    g.gain.linearRampToValueAtTime(VOICE_GAIN, now + 0.002);
+    src.connect(g);
+    g.connect(A.bus);
+    // state: 'on' = klinger, 'sus' = sluppet med sustain på (langsom fade), 'off' = dempet
+    const v = { src, g, note, held: true, state: 'on', released: false, ctx, fadeStart: null, fadeFrom: VOICE_GAIN, fadeTau: 1, stopped: false };
+    src.onended = () => {
+      try { g.disconnect(); } catch (e) {}
+      const i = A.voices.indexOf(v);
+      if (i >= 0) A.voices.splice(i, 1);
+    };
+    src.start(now, Math.min(offset, buf.duration - 0.01));
+    A.voices.push(v);
+    return v;
+  }
+  // Volumet til en tone regnes ut selv (i stedet for å lese det fra nettleseren),
+  // så en ny fade alltid starter nøyaktig der den forrige var.
+  function voiceGainAt(v, t) {
+    if (v.fadeStart === null) return VOICE_GAIN;
+    if (t <= v.fadeStart) return v.fadeFrom;
+    return v.fadeFrom * Math.exp(-(t - v.fadeStart) / v.fadeTau);
+  }
+  function fadeVoice(v, tau, stop, delay) {
+    if (v.ctx !== A.ctx) { try { v.src.stop(); } catch (e) {} return; }
+    const now = A.ctx.currentTime;
+    const cur = voiceGainAt(v, now);
+    const start = now + (delay || 0);
+    const p = v.g.gain;
+    try {
+      p.cancelScheduledValues(now);
+      p.setValueAtTime(cur, now);
+      p.setTargetAtTime(0, start, tau);
+    } catch (e) { /* ignorer */ }
+    v.fadeStart = start; v.fadeFrom = cur; v.fadeTau = tau;
+    if (stop && !v.stopped) {
+      v.stopped = true;
+      try { v.src.stop(now + tau * 9); } catch (e) { try { v.src.stop(); } catch (e2) {} }
+    }
+  }
+  function dampVoice(v, tau) {
+    if (!v || v.released) return;
+    v.released = true;
+    v.state = 'off';
+    fadeVoice(v, tau, true);
+  }
+  function noteOff(v) {
+    if (!v) return;
+    v.held = false;
+    if (v.released) return;
+    if (sustainOn) {
+      v.state = 'sus';
+      // Sustain-lengde (sekunder): tonen klinger naturlig første halvdel,
+      // og fades så helt ut innen valgt tid. 12 = naturlig utklinging.
+      if (S.sLen < 12) fadeVoice(v, (S.sLen * 0.5) / 6.9, false, S.sLen * 0.5);
+    } else {
+      dampVoice(v, RELEASE_TAU);
+    }
+  }
+  function setSustain(on) {
+    sustainOn = on;
+    btnSustain.classList.toggle('on', on);
+    btnSustain.setAttribute('aria-pressed', String(on));
+    if (!on && A.ctx) {
+      for (const v of A.voices) if (!v.held && v.state === 'sus') dampVoice(v, RELEASE_TAU);
+    }
+  }
+
+  // ---------- Pads (varm synth-pad, lages direkte i nettleseren) ----------
+  // Rekkefølge: dypest til venstre
+  const PADS = [
+    { label: 'Bb', notes: [46, 50, 53, 58], bass: 34 }, // Bb-dur: Bb2 D3 F3 Bb3 + Bb1
+    { label: 'C',  notes: [48, 52, 55, 60], bass: 36 }, // C-dur:  C3 E3 G3 C4 + C2
+    { label: 'Dm', notes: [50, 53, 57, 62], bass: 38 }, // d-moll: D3 F3 A3 D4 + D2
+  ];
+  // Myk innfading (S-kurve over ca. 0,65 s), alltid lik
+  const PAD_ATTACK = [[0, 0], [0.08, 0.04], [0.18, 0.2], [0.3, 0.52], [0.42, 0.82], [0.55, 0.97], [0.65, 1]];
+  // Ved bytte fra en akkord til en annen: rask og jevn overgang (kryssfade, ny akkord helt inne etter 0,28 s).
+  // Den nye kommer inn med en sinuskurve mens den gamle holder litt og så faller,
+  // så den samlede lydstyrken holder seg jevn (målt: ikke under ca. 90 %) og det blir ikke noe hull.
+  const PAD_XFADE_TIME = 0.28;
+  const PAD_XFADE_ATTACK = [0, 1, 2, 3, 4, 5, 6, 7].map((k) => {
+    const t = (k / 7) * PAD_XFADE_TIME;
+    return [t, Math.sin((Math.PI / 2) * (t / PAD_XFADE_TIME))];
+  });
+  const PAD_XFADE_HOLD = 0.1;       // den gamle akkorden holder full styrke så lenge før den faller
+  const PAD_XFADE_TAU = 0.2;
+  const PAD_XFADE_BASS_TAU = 0.1;   // den gamle bassen går litt raskere ut, så to basstoner ikke svever mot hverandre
+  const PAD_START_DELAY = 0.03; // starter litt frem i tid, så starten aldri kuttes
+  const PAD_RELEASE_TAU = 0.3;  // fade ut ved stopp (ca. 1 s)
+  const PAD_VOICE_GAIN = 0.022;
+  const PAD_TOP_GAIN = 0.55;    // øverste tone litt svakere
+  const PAD_BASS_GAIN = 0.15;
+  const PAD_DETUNE = [-9, 1, 10];   // tre svakt forstemte stemmer per tone
+  const PAD_PANS = [-0.6, 0, 0.6];  // spredt i stereo
+  const mtof = (n) => 440 * Math.pow(2, (n - 69) / 12);
+  let activePad = null;   // indeks for pad som er på
+  let activeChord = null; // lydobjektet som spiller
+  let padWaveCtx = null, padWaves = null, padBassWave = null;
+
+  function padWavesFor(ctx) {
+    // Myke bølgeformer (færre overtoner enn sagtann) med faste faser, så lyden blir lik hver gang
+    if (padWaveCtx === ctx) return;
+    const N = 32;
+    const make = (seed, amp) => {
+      let s = seed;
+      const rnd = () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; };
+      const re = new Float32Array(N), im = new Float32Array(N);
+      for (let n = 1; n < N; n++) {
+        const a = amp(n), ph = rnd() * 2 * Math.PI;
+        re[n] = a * Math.cos(ph);
+        im[n] = a * Math.sin(ph);
+      }
+      return ctx.createPeriodicWave(re, im);
+    };
+    padWaves = [11, 23, 37].map((seed) => make(seed, (n) => 1 / Math.pow(n, 1.55)));
+    padBassWave = make(5, (n) => [0, 1, 0.45, 0.18, 0.08][n] || 0);
+    padWaveCtx = ctx;
+  }
+  function startChord(i, attack) {
+    const ctx = A.ctx;
+    if (!ctx) return null;
+    if (ctx.state !== 'running') tryResume();
+    padWavesFor(ctx);
+    const t = S.tOn ? S.tAmt : 0;
+    const t0 = ctx.currentTime + PAD_START_DELAY;
+    // Innfading på én node, utfading på en annen: de forstyrrer aldri hverandre
+    const env = ctx.createGain();
+    env.gain.value = 0;
+    env.gain.setValueAtTime(0, t0);
+    for (const [dt, v] of (attack || PAD_ATTACK).slice(1)) env.gain.linearRampToValueAtTime(v, t0 + dt);
+    const rel = ctx.createGain();
+    env.connect(rel);
+    rel.connect(A.padBus);
+    // To myke lavpassfiltre gir en varm, rund klang; en svært langsom LFO gir litt liv
+    const lp1 = ctx.createBiquadFilter();
+    lp1.type = 'lowpass'; lp1.frequency.value = 950; lp1.Q.value = 0.35;
+    const lp2 = ctx.createBiquadFilter();
+    lp2.type = 'lowpass'; lp2.frequency.value = 1700; lp2.Q.value = 0.4;
+    lp1.connect(lp2); lp2.connect(env);
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 0.11;
+    const lfoAmt = ctx.createGain();
+    lfoAmt.gain.value = 90;
+    lfo.connect(lfoAmt); lfoAmt.connect(lp1.frequency);
+    const oscs = [lfo];
+    const nodes = [env, rel, lp1, lp2, lfoAmt];
+    // Tre stereogrupper (venstre, midt, høyre)
+    const groups = PAD_PANS.map((pan) => {
+      const g = ctx.createGain();
+      nodes.push(g);
+      if (ctx.createStereoPanner) {
+        const p = ctx.createStereoPanner();
+        p.pan.value = pan;
+        g.connect(p); p.connect(lp1);
+        nodes.push(p);
+      } else {
+        g.connect(lp1);
+      }
+      return g;
+    });
+    const notes = PADS[i].notes;
+    notes.forEach((n, ni) => {
+      const freq = mtof(n + t);
+      const level = PAD_VOICE_GAIN * (ni === notes.length - 1 ? PAD_TOP_GAIN : 1);
+      PAD_DETUNE.forEach((det, k) => {
+        const o = ctx.createOscillator();
+        o.setPeriodicWave(padWaves[k]);
+        o.frequency.value = freq;
+        o.detune.value = det;
+        const g = ctx.createGain();
+        g.gain.value = level;
+        o.connect(g); g.connect(groups[k]);
+        oscs.push(o); nodes.push(g);
+      });
+    });
+    // Fyldig bassgrunntone, utenom filteret
+    const b = ctx.createOscillator();
+    b.setPeriodicWave(padBassWave);
+    b.frequency.value = mtof(PADS[i].bass + t);
+    const bg = ctx.createGain();
+    bg.gain.value = PAD_BASS_GAIN;
+    b.connect(bg); bg.connect(env);
+    oscs.push(b); nodes.push(bg);
+    for (const o of oscs) o.start(t0);
+    return { ctx, rel, bassGain: bg, oscs, nodes, idx: i, released: false, t0 };
+  }
+  function releaseChord(ch, tau, at, bassTau) {
+    if (!ch || ch.released) return;
+    ch.released = true;
+    const ctx = ch.ctx;
+    const done = () => { for (const n of ch.nodes) { try { n.disconnect(); } catch (e) {} } };
+    if (ctx !== A.ctx || ctx.state === 'closed') {
+      for (const o of ch.oscs) { try { o.stop(); } catch (e) {} }
+      done();
+      return;
+    }
+    const now = Math.max(ctx.currentTime + 0.005, ch.t0, at || 0);
+    try {
+      ch.rel.gain.setValueAtTime(1, now);
+      ch.rel.gain.setTargetAtTime(0, now, tau);
+      if (bassTau) {
+        ch.bassGain.gain.setValueAtTime(PAD_BASS_GAIN, now);
+        ch.bassGain.gain.setTargetAtTime(0, now, bassTau);
+      }
+      const end = now + tau * 8;
+      for (const o of ch.oscs) o.stop(end);
+      ch.oscs[ch.oscs.length - 1].onended = done;
+    } catch (e) {
+      for (const o of ch.oscs) { try { o.stop(); } catch (e2) {} }
+      done();
+    }
+  }
+  function playChord(i) {
+    // Start akkord i: fra stillhet med myk innfading, ellers kryssfade fra den som spiller
+    const old = activeChord;
+    activeChord = startChord(i, old ? PAD_XFADE_ATTACK : PAD_ATTACK);
+    activePad = activeChord ? i : null;
+    if (old) {
+      if (activeChord) releaseChord(old, PAD_XFADE_TAU, activeChord.t0 + PAD_XFADE_HOLD, PAD_XFADE_BASS_TAU);
+      else releaseChord(old, PAD_RELEASE_TAU);
+    }
+  }
+  function togglePad(i) {
+    if (!A.ctx) return;
+    if (activePad === i) {
+      releaseChord(activeChord, PAD_RELEASE_TAU);
+      activeChord = null;
+      activePad = null;
+    } else {
+      playChord(i);
+    }
+    renderPads();
+  }
+  function retriggerPad() {
+    // Transponering endret mens en pad står på: gli over til ny toneart
+    if (activePad === null || !A.ctx) return;
+    playChord(activePad);
+    renderPads();
+  }
+  function stopPadNow() {
+    if (activeChord) releaseChord(activeChord, 0.03);
+    activeChord = null;
+    activePad = null;
+    renderPads();
+  }
+  function renderPads() {
+    document.querySelectorAll('.pad').forEach((el) => {
+      const on = Number(el.dataset.pad) === activePad;
+      el.classList.toggle('on', on);
+      el.setAttribute('aria-pressed', String(on));
+    });
+  }
+  function applyPadsVisible() {
+    document.body.classList.toggle('nopads', !S.pads);
+    if (!S.pads && activePad !== null) togglePad(activePad);
+  }
+
+  // ---------- Tangentbord (tegning og treff) ----------
+  const kb = document.getElementById('kb');
+  const btnSustain = document.getElementById('btnSustain');
+  const btnTransp = document.getElementById('btnTransp');
+  const transpLabel = document.getElementById('transpLabel');
+  const btnSettings = document.getElementById('btnSettings');
+  const lamp = document.getElementById('lamp');
+
+  let keys = [];         // { midi, white, x, w, el }
+  let whiteW = 0, blackH = 0;
+  const BLACK_SHIFT = { 1: -0.08, 3: 0.08, 6: -0.1, 8: 0, 10: 0.1 };
+
+  const KEY_RATIO = 6.5; // maks lengde i forhold til bredde for hvite tangenter
+
+  function layoutKeys() {
+    const whites = [];
+    for (let m = S.lo; m <= S.hi; m++) if (isWhite(m)) whites.push(m);
+    // Unngå unaturlig lange tangenter i høye vinduer: resten blir tomrom øverst
+    const maxH = Math.max(80, Math.round(kb.clientWidth / whites.length * KEY_RATIO)) + 'px';
+    if (kb.style.maxHeight !== maxH) kb.style.maxHeight = maxH;
+    const rect = kb.getBoundingClientRect();
+    const W = rect.width, H = rect.height;
+    kb.textContent = '';
+    keys = [];
+    whiteW = W / whites.length;
+    blackH = H * 0.62;
+    const bw = whiteW * 0.6;
+    const frag = document.createDocumentFragment();
+    const downSet = new Set(keyDownCount.keys());
+    whites.forEach((m, i) => {
+      const el = document.createElement('div');
+      el.className = 'wk' + (pc(m) === 0 ? ' c' : '') + (downSet.has(m) ? ' down' : '');
+      el.style.left = (i * whiteW) + 'px';
+      el.style.width = whiteW + 'px';
+      if (pc(m) === 0 && whiteW >= 18) {
+        const l = document.createElement('div');
+        l.className = 'lbl';
+        l.textContent = whiteName(m);
+        el.appendChild(l);
+      }
+      frag.appendChild(el);
+      keys.push({ midi: m, white: true, x: i * whiteW, w: whiteW, el });
+    });
+    for (let m = S.lo + 1; m < S.hi; m++) {
+      if (isWhite(m)) continue;
+      const leftWhiteIdx = whites.indexOf(m - 1);
+      if (leftWhiteIdx < 0) continue;
+      const boundary = (leftWhiteIdx + 1) * whiteW;
+      const x = boundary - bw / 2 + (BLACK_SHIFT[pc(m)] || 0) * whiteW;
+      const el = document.createElement('div');
+      el.className = 'bk' + (downSet.has(m) ? ' down' : '');
+      el.style.left = x + 'px';
+      el.style.width = bw + 'px';
+      el.style.height = blackH + 'px';
+      frag.appendChild(el);
+      keys.push({ midi: m, white: false, x, w: bw, el });
+    }
+    kb.appendChild(frag);
+  }
+
+  function hitTest(clientX, clientY) {
+    const r = kb.getBoundingClientRect();
+    const x = clientX - r.left, y = clientY - r.top;
+    if (x < 0 || y < 0 || x > r.width || y > r.height) return null;
+    if (y <= blackH) {
+      for (const k of keys) if (!k.white && x >= k.x && x <= k.x + k.w) return k;
+    }
+    const idx = Math.min(Math.floor(x / whiteW), keys.filter((k) => k.white).length - 1);
+    let n = 0;
+    for (const k of keys) { if (k.white) { if (n === idx) return k; n++; } }
+    return null;
+  }
+
+  // ---------- Berøring ----------
+  const touches = new Map();      // id -> { key, voice }
+  const keyDownCount = new Map(); // midi -> antall fingre
+  function markKey(k, delta) {
+    const c = (keyDownCount.get(k.midi) || 0) + delta;
+    if (c <= 0) keyDownCount.delete(k.midi); else keyDownCount.set(k.midi, c);
+    const el = keys.find((x) => x.midi === k.midi);
+    if (el) el.el.classList.toggle('down', c > 0);
+  }
+  function press(id, k) {
+    if (touches.has(id)) release(id);
+    const note = k.midi + (S.tOn ? S.tAmt : 0);
+    const voice = noteOn(note);
+    touches.set(id, { key: k, voice });
+    markKey(k, +1);
+    Vis.down(id, k.midi); // tangenten slik den heter (ikke transponert)
+  }
+  function release(id) {
+    const t = touches.get(id);
+    if (!t) return;
+    touches.delete(id);
+    noteOff(t.voice);
+    markKey(t.key, -1);
+    Vis.up(id);
+  }
+  function releaseAllTouches() {
+    for (const id of [...touches.keys()]) release(id);
+  }
+  function reconcile(list) {
+    // Slipp fingre som iOS har "glemt" å melde fra om
+    const live = new Set();
+    for (const t of list) live.add('t' + t.identifier);
+    for (const id of [...touches.keys()]) if (id.startsWith('t') && !live.has(id)) release(id);
+  }
+
+  kb.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    reconcile(e.touches);
+    for (const t of e.changedTouches) {
+      const k = hitTest(t.clientX, t.clientY);
+      if (k) press('t' + t.identifier, k);
+    }
+  }, { passive: false });
+  kb.addEventListener('touchmove', (e) => { e.preventDefault(); }, { passive: false });
+  const touchEnd = (e) => {
+    e.preventDefault();
+    for (const t of e.changedTouches) release('t' + t.identifier);
+    reconcile(e.touches);
+    if (A.ctx && A.ctx.state !== 'running') tryResume();
+  };
+  kb.addEventListener('touchend', touchEnd, { passive: false });
+  kb.addEventListener('touchcancel', touchEnd, { passive: false });
+
+  // Mus/penn (for testing på datamaskin)
+  kb.addEventListener('pointerdown', (e) => {
+    if (e.pointerType === 'touch') return;
+    e.preventDefault();
+    const k = hitTest(e.clientX, e.clientY);
+    if (k) press('p' + e.pointerId, k);
+  });
+  const pointerEnd = (e) => { if (e.pointerType !== 'touch') release('p' + e.pointerId); };
+  window.addEventListener('pointerup', pointerEnd);
+  window.addEventListener('pointercancel', pointerEnd);
+
+  // Knapper som skal reagere med en gang (på trykk ned)
+  function onPress(el, fn) {
+    el.addEventListener('touchstart', (e) => { e.preventDefault(); fn(); }, { passive: false });
+    el.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'touch') { e.preventDefault(); fn(); } });
+  }
+  // Knapper som må regnes som "brukerhandling" for lyd i iOS (på slipp)
+  function onTap(el, fn) {
+    el.addEventListener('touchstart', (e) => { e.preventDefault(); }, { passive: false });
+    el.addEventListener('touchend', (e) => { e.preventDefault(); fn(); }, { passive: false });
+    el.addEventListener('click', (e) => { if (e.pointerType !== 'touch') fn(); });
+  }
+
+  onPress(btnSustain, () => setSustain(!sustainOn));
+  onPress(btnTransp, () => { S.tOn = !S.tOn; saveSettings(); renderTransp(); if (S.tAmt !== 0) retriggerPad(); });
+  document.querySelectorAll('.pad').forEach((el) => onPress(el, () => togglePad(Number(el.dataset.pad))));
+  onPress(btnSettings, openSettings);
+  onTap(lamp, () => {
+    if (!A.ctx) { startAudio(); return; }
+    const st = lampState();
+    if (st === 'bad') restartAudio();
+    else if (st === 'loading') ensureSamples();
+  });
+
+  function renderTransp() {
+    const a = S.tAmt;
+    transpLabel.textContent = a === 0 ? '0' : (a > 0 ? '+' + a : '−' + Math.abs(a));
+    btnTransp.classList.toggle('on', S.tOn);
+    btnTransp.setAttribute('aria-pressed', String(S.tOn));
+  }
+
+  // Hindre zoom, markering og meny
+  document.addEventListener('gesturestart', (e) => e.preventDefault());
+  document.addEventListener('dblclick', (e) => e.preventDefault());
+  document.addEventListener('contextmenu', (e) => { if (!e.target.closest('#settings')) e.preventDefault(); });
+
+  // ---------- Start ----------
+  const startEl = document.getElementById('start');
+  const startHint = document.getElementById('startHint');
+  function startAudio() {
+    if (!A.ctx) createContext();
+    unlock();
+    ensureSamples();
+    requestWakeLock();
+    startEl.hidden = true;
+    startEl.style.display = 'none';
+    updateStatus();
+  }
+  onTap(startEl, startAudio);
+
+  // ---------- Skjermlås ----------
+  let wakeLock = null;
+  async function requestWakeLock() {
+    try {
+      if ('wakeLock' in navigator && document.visibilityState === 'visible' && !wakeLock) {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => { wakeLock = null; });
+      }
+    } catch (e) { wakeLock = null; }
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      releaseAllTouches();
+    } else {
+      tryResume();
+      if (A.ctx) requestWakeLock();
+      updateStatus();
+    }
+  });
+  window.addEventListener('pageshow', () => { tryResume(); updateStatus(); });
+  window.addEventListener('pagehide', releaseAllTouches);
+
+  // ---------- Status og vakthund ----------
+  function lampState() {
+    if (!A.ctx) return 'off';
+    if (A.ctx.state !== 'running' || A.stalled) return 'bad';
+    if (A.decoding.size > 0) return 'loading';
+    const need = neededSamples();
+    if (!need.every((m) => A.buffers.has(m))) return 'loading';
+    return 'ok';
+  }
+  function updateStatus() {
+    const st = lampState();
+    lamp.className = 'ctl ' + st;
+    lamp.setAttribute('aria-label', 'Lydstatus: ' + st);
+    if (!settingsEl.hidden) renderStatusList();
+  }
+  setInterval(() => {
+    if (A.ctx) {
+      const t = A.ctx.currentTime;
+      if (A.ctx.state === 'running' && document.visibilityState === 'visible') {
+        A.stallCount = (t === A.lastTime) ? A.stallCount + 1 : 0;
+        A.stalled = A.stallCount >= 2;
+      } else {
+        A.stallCount = 0;
+        A.stalled = false;
+        if (document.visibilityState === 'visible') tryResume();
+      }
+      A.lastTime = t;
+      // Prøv igjen hvis noen lyder feilet (f.eks. dårlig nett)
+      if (A.failed.size && A.decoding.size === 0) ensureSamples();
+    }
+    updateStatus();
+  }, 1000);
+
+  // ---------- Innstillinger ----------
+  const settingsEl = document.getElementById('settings');
+  const selLo = document.getElementById('selLo');
+  const selHi = document.getElementById('selHi');
+  const selTransp = document.getElementById('selTransp');
+  const rngVol = document.getElementById('rngVol');
+  const rngRev = document.getElementById('rngRev');
+  const outVol = document.getElementById('outVol');
+  const outRev = document.getElementById('outRev');
+  const rngSus = document.getElementById('rngSus');
+  const outSus = document.getElementById('outSus');
+  const susLabel = () => (S.sLen >= 12 ? 'naturlig (lang)' : S.sLen + ' s');
+  const chkPads = document.getElementById('chkPads');
+  const rngPadVol = document.getElementById('rngPadVol');
+  const rngPadRev = document.getElementById('rngPadRev');
+  const outPadVol = document.getElementById('outPadVol');
+  const outPadRev = document.getElementById('outPadRev');
+  const rangeInfo = document.getElementById('rangeInfo');
+  const statusList = document.getElementById('statusList');
+
+  function fillSelects() {
+    const opts = [];
+    for (let m = MIDI_MIN; m <= MIDI_MAX; m++) {
+      if (!isWhite(m)) continue;
+      opts.push('<option value="' + m + '">' + whiteName(m) + (m === 60 ? ' (midtre C)' : '') + '</option>');
+    }
+    selLo.innerHTML = opts.join('');
+    selHi.innerHTML = opts.join('');
+    const t = [];
+    for (let k = 12; k >= -12; k--) {
+      let label;
+      if (k === 0) label = '0 (ingen)';
+      else {
+        const sign = k > 0 ? '+' : '−';
+        const target = PC_NAME[pc(k)];
+        const extra = Math.abs(k) === 12 ? (k > 0 ? ', en oktav opp' : ', en oktav ned') : '';
+        label = sign + Math.abs(k) + ' (C klinger som ' + target + extra + ')';
+      }
+      t.push('<option value="' + k + '">' + label + '</option>');
+    }
+    selTransp.innerHTML = t.join('');
+  }
+  function renderSettings() {
+    selLo.value = String(S.lo);
+    selHi.value = String(S.hi);
+    selTransp.value = String(S.tAmt);
+    rngVol.value = String(S.vol);
+    rngRev.value = String(S.rev);
+    outVol.textContent = S.vol + ' %';
+    outRev.textContent = S.rev === 0 ? 'Av' : S.rev + ' %';
+    rngSus.value = String(S.sLen);
+    outSus.textContent = susLabel();
+    chkPads.checked = S.pads;
+    rngPadVol.value = String(S.pVol);
+    rngPadRev.value = String(S.pRev);
+    outPadVol.textContent = S.pVol + ' %';
+    outPadRev.textContent = S.pRev === 0 ? 'Av' : S.pRev + ' %';
+    let total = 0, whites = 0;
+    for (let m = S.lo; m <= S.hi; m++) { total++; if (isWhite(m)) whites++; }
+    rangeInfo.textContent = whiteName(S.lo) + ' til ' + whiteName(S.hi) + ': ' + total + ' tangenter (' + whites + ' hvite).';
+    Vis.renderSettings();
+    renderStatusList();
+  }
+  function renderStatusList() {
+    const ctx = A.ctx;
+    const need = neededSamples();
+    const loaded = need.filter((m) => A.buffers.has(m)).length;
+    const stateNo = {
+      running: 'kjører', suspended: 'satt på pause', interrupted: 'avbrutt av systemet', closed: 'lukket',
+    };
+    const rows = [
+      ['Lyd', ctx ? (stateNo[ctx.state] || ctx.state) + (A.stalled ? ' (står stille!)' : '') : 'ikke startet'],
+      ['Lydmodus', navigator.audioSession ? navigator.audioSession.type + ' (blandes med andre apper)' : 'ikke støttet i denne nettleseren'],
+      ['Samplerate', ctx ? ctx.sampleRate + ' Hz' : '–'],
+      ['Lyder lastet', loaded + ' av ' + need.length],
+      ['Aktive toner', String(A.voices.filter((v) => !v.released).length)],
+      ['Pad', activePad === null ? 'av' : PADS[activePad].label + (S.tOn && S.tAmt ? ' (transponert ' + (S.tAmt > 0 ? '+' : '−') + Math.abs(S.tAmt) + ')' : '')],
+      ['Skjerm holdes våken', wakeLock ? 'ja' : ('wakeLock' in navigator ? 'nei (ikke aktiv nå)' : 'ikke støttet')],
+      ['Klar uten nett', offlineStatus],
+      ['Visning', (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone ? 'Hjem-skjerm-app' : 'Nettleser'],
+      ['Vindu', Math.round(window.innerWidth) + ' × ' + Math.round(window.innerHeight)],
+      ['Lyd startet på nytt', A.restarts + ' gang(er)'],
+      ['Siste feil', A.lastError || 'ingen'],
+      ['Versjon', VERSION],
+    ];
+    statusList.innerHTML = rows.map(([k, v]) => '<dt>' + k + '</dt><dd>' + escapeHtml(v) + '</dd>').join('');
+  }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  }
+  function openSettings() {
+    releaseAllTouches();
+    Vis.closeMenu();
+    renderSettings();
+    refreshOfflineStatus();
+    settingsEl.hidden = false;
+    settingsEl.scrollTop = 0;
+  }
+  function closeSettings() {
+    settingsEl.hidden = true;
+    layoutKeys();
+    Vis.draw();
+  }
+  function whiteAtOrAbove(m) { while (m < MIDI_MAX && !isWhite(m)) m++; return Math.min(m, MIDI_MAX); }
+  function whiteAtOrBelow(m) { while (m > MIDI_MIN && !isWhite(m)) m--; return Math.max(m, MIDI_MIN); }
+
+  selLo.addEventListener('change', () => {
+    S.lo = Number(selLo.value);
+    if (S.hi <= S.lo) S.hi = whiteAtOrAbove(Math.min(MIDI_MAX, S.lo + 12));
+    if (S.hi <= S.lo) { S.lo = whiteAtOrBelow(S.hi - 12); }
+    saveSettings(); renderSettings(); layoutKeys(); ensureSamples();
+  });
+  selHi.addEventListener('change', () => {
+    S.hi = Number(selHi.value);
+    if (S.hi <= S.lo) S.lo = whiteAtOrBelow(Math.max(MIDI_MIN, S.hi - 12));
+    if (S.hi <= S.lo) { S.hi = whiteAtOrAbove(S.lo + 12); }
+    saveSettings(); renderSettings(); layoutKeys(); ensureSamples();
+  });
+  selTransp.addEventListener('change', () => {
+    S.tAmt = Number(selTransp.value);
+    saveSettings(); renderSettings(); renderTransp(); ensureSamples();
+    if (S.tOn) retriggerPad();
+  });
+  chkPads.addEventListener('change', () => {
+    S.pads = chkPads.checked;
+    saveSettings(); applyPadsVisible();
+  });
+  rngPadVol.addEventListener('input', () => {
+    S.pVol = Number(rngPadVol.value);
+    outPadVol.textContent = S.pVol + ' %';
+    applyVolume(false); saveSettings();
+  });
+  rngPadRev.addEventListener('input', () => {
+    S.pRev = Number(rngPadRev.value);
+    outPadRev.textContent = S.pRev === 0 ? 'Av' : S.pRev + ' %';
+    applyReverb(false); saveSettings();
+  });
+  rngVol.addEventListener('input', () => {
+    S.vol = Number(rngVol.value);
+    outVol.textContent = S.vol + ' %';
+    applyVolume(false); saveSettings();
+  });
+  rngRev.addEventListener('input', () => {
+    S.rev = Number(rngRev.value);
+    outRev.textContent = S.rev === 0 ? 'Av' : S.rev + ' %';
+    applyReverb(false); saveSettings();
+  });
+  rngSus.addEventListener('input', () => {
+    S.sLen = Number(rngSus.value);
+    outSus.textContent = susLabel();
+    saveSettings();
+  });
+  document.getElementById('btnClose').addEventListener('click', closeSettings);
+  document.getElementById('btnRestart').addEventListener('click', () => {
+    if (!A.ctx) startAudio(); else restartAudio();
+    renderStatusList();
+  });
+
+  // ---------- Frakoblet bruk (service worker) ----------
+  let offlineStatus = 'sjekker …';
+  function refreshOfflineStatus() {
+    if (!('serviceWorker' in navigator) || !window.caches) { offlineStatus = 'ikke støttet'; return; }
+    caches.keys()
+      .then((names) => Promise.all(names.map((n) => caches.open(n).then((c) => c.keys()))))
+      .then((lists) => {
+        const urls = new Set();
+        for (const l of lists) for (const r of l) urls.add(new URL(r.url).pathname.split('/').pop());
+        const have = SAMPLE_MIDIS.filter((m) => urls.has(sampleUrl(m).split('/').pop())).length;
+        const core = urls.has('index.html') || urls.has('');
+        offlineStatus = (have === SAMPLE_MIDIS.length && core) ? 'ja (alt er lagret)' : 'nei, lagret ' + have + ' av ' + SAMPLE_MIDIS.length + ' lyder';
+        if (!settingsEl.hidden) renderStatusList();
+      })
+      .catch(() => { offlineStatus = 'ukjent'; });
+  }
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+    navigator.serviceWorker.register('../sw.js', { scope: '../' }).then(() => setTimeout(refreshOfflineStatus, 4000)).catch(() => { offlineStatus = 'kunne ikke aktiveres'; });
+  } else {
+    offlineStatus = 'ikke aktiv (krever https)';
+  }
+
+  // ---------- Visningsfelt (skisse) ----------
+  // «Spill»: notehoder uten halser og uten notelinjer vises mens du spiller.
+  //   Loddrett = tonehøyde (som på noter: hver hvite tangent er ett trinn, # og b står på sin tone med fortegn).
+  //   Vannrett = tid, så avstanden viser rytme og varighet. Hver frase får sin egen linje,
+  //   og linjene starter likt til venstre, så motiv, repetisjon og variasjon kan sammenlignes.
+  // «Bilder»: egne bilder (f.eks. eksportert fra Keynote), bla med sveip eller pilene.
+  const Vis = (() => {
+    const disp = document.getElementById('display');
+    const stage = document.getElementById('dStage');
+    const canvas = document.getElementById('dCanvas');
+    const g = canvas.getContext('2d');
+    const img = document.getElementById('dImg');
+    const empty = document.getElementById('dEmpty');
+    const count = document.getElementById('dCount');
+    const segBtns = [...document.querySelectorAll('.seg .dbtn')];
+    const WHITE_IDX = { 0: 0, 2: 1, 4: 2, 5: 3, 7: 4, 9: 5, 11: 6 };
+    const dia = (m) => Math.floor(m / 12) * 7 + WHITE_IDX[pc(m)];
+    function staffPos(m) {
+      if (isWhite(m)) return { pos: dia(m), acc: '' };
+      return PC_NAME[pc(m)].includes('#') ? { pos: dia(m - 1), acc: '♯' } : { pos: dia(m + 1), acc: '♭' };
+    }
+    const STAFF_LO = dia(64), STAFF_HI = dia(77); // G-nøkkel: nederste linje E4, øverste linje F5
+
+    // ----- Farger for deler -----
+    const KIND_NAME = { r: 'Repetisjon', v: 'Variasjon' };
+    function tones(color) {
+      const c = PART_COLORS[color] || PART_COLORS.grey;
+      const h = c[1], sat = c[2];
+      return {
+        strong: 'hsl(' + h + ',' + sat + '%,79%)',
+        base: 'hsl(' + h + ',' + sat + '%,87%)',
+        pale: 'hsl(' + h + ',' + sat + '%,94%)',
+        ink: 'hsl(' + h + ',' + Math.min(sat, 45) + '%,27%)',
+      };
+    }
+    const partById = (id) => S.dParts.find((x) => x.id === id) || null;
+    const partName = (p) => (p.name || '').trim() || 'Del';
+    // Gyldig navn på en linje, eller null (f.eks. hvis delen er slettet)
+    function labelOf(r) {
+      if (!r || !r.label) return null;
+      const p = partById(r.label.p);
+      return p ? { part: p, kind: r.label.k, t: tones(p.color) } : null;
+    }
+    // Fyller et felt: første gang = full farge, repetisjon = blekere, variasjon = blek med striper
+    function fillKind(x, y, w, h, t, kind, strong) {
+      const full = strong ? t.strong : t.base, light = strong ? t.base : t.pale;
+      g.fillStyle = kind === 'o' ? full : light;
+      g.fillRect(x, y, w, h);
+      if (kind !== 'v') return;
+      g.save();
+      g.beginPath(); g.rect(x, y, w, h); g.clip();
+      g.strokeStyle = full; g.lineWidth = 7;
+      g.beginPath();
+      for (let k = x - h; k < x + w + h; k += 18) { g.moveTo(k, y + h); g.lineTo(k + h, y); }
+      g.stroke();
+      g.restore();
+    }
+
+    // ----- «Spill» -----
+    let rows = [];            // { id, t0, label: null | { p: del-id, k: 'o' | 'r' | 'v' }, notes: [{ midi, t, held }] }
+    const history = [];       // for «Angre»
+    const held = new Map();   // berørings-id -> note
+    let lastOff = 0;
+    let fresh = false;        // neste tone starter en ny linje (etter Angre, Frys av o.l.)
+    let nextId = 1;
+    const live = () => S.disp && S.dMode === 'live';
+    const copyRows = () => rows.map((r) => ({
+      id: r.id, t0: null, label: r.label ? { p: r.label.p, k: r.label.k } : null,
+      notes: r.notes.map((n) => ({ midi: n.midi, t: n.t, held: false })),
+    }));
+    function remember() { history.push(copyRows()); if (history.length > 40) history.shift(); }
+    function addRow() {
+      remember();
+      rows.push({ id: nextId++, t0: null, label: null, notes: [] });
+      while (rows.length > S.dRows) rows.shift();
+    }
+    function down(id, midi) {
+      if (!live() || S.dFrozen) return;
+      const now = performance.now();
+      const last = rows[rows.length - 1];
+      const pause = S.dGap > 0 && held.size === 0 && lastOff > 0 && now - lastOff > S.dGap * 1000;
+      if (!last || ((pause || fresh) && last.notes.length)) addRow();
+      fresh = false;
+      const row = rows[rows.length - 1];
+      if (row.t0 === null) row.t0 = now - (row.notes.length ? row.notes[row.notes.length - 1].t + 400 : 0);
+      const n = { midi, t: now - row.t0, held: true };
+      row.notes.push(n);
+      held.set(id, n);
+      changed();
+    }
+    function up(id) {
+      const n = held.get(id);
+      if (!n) return;
+      held.delete(id);
+      n.held = false;
+      lastOff = performance.now();
+      changed();
+    }
+    function newRow() {
+      if (S.dFrozen) { S.dFrozen = false; saveSettings(); apply(); }
+      const last = rows[rows.length - 1];
+      if (last && !last.notes.length) return; // en tom linje står allerede klar
+      addRow();
+      fresh = false;
+      changed();
+    }
+    function undo() {
+      held.clear();
+      if (history.length) {
+        const labels = new Map(rows.map((r) => [r.id, r.label]));
+        rows = history.pop();
+        for (const r of rows) if (labels.has(r.id)) r.label = labels.get(r.id);
+      } else {
+        rows.pop();
+      }
+      lastOff = 0;
+      fresh = true; // neste tone havner på en ny linje, ikke på linjen over
+      changed();
+    }
+    function clear() {
+      if (S.dFrozen) { S.dFrozen = false; saveSettings(); apply(); }
+      if (!rows.length) return;
+      remember();
+      rows = [];
+      held.clear();
+      lastOff = 0;
+      fresh = false;
+      changed();
+    }
+    function setFrozen(on) {
+      S.dFrozen = on;
+      saveSettings();
+      if (!on) { fresh = true; lastOff = 0; }
+      held.forEach((n) => { n.held = false; });
+      held.clear();
+      apply();
+    }
+    function setGrid(mode) {
+      S.dGrid = S.dGrid === mode ? 'off' : mode;
+      saveSettings();
+      apply();
+    }
+
+    // Det som står i feltet, huskes (også om siden lastes på nytt)
+    let saveTimer = 0;
+    function changed() {
+      draw();
+      clearTimeout(saveTimer);
+      saveTimer = setTimeout(saveRows, 400);
+    }
+    function saveRows() {
+      try {
+        localStorage.setItem(ROWS_KEY, JSON.stringify({
+          v: 1,
+          rows: rows.map((r) => ({ l: r.label, n: r.notes.map((n) => [n.midi, Math.round(n.t)]) })),
+        }));
+      } catch (e) { /* privat modus o.l. */ }
+    }
+    function loadRows() {
+      try {
+        const d = JSON.parse(localStorage.getItem(ROWS_KEY) || 'null');
+        if (!d || !Array.isArray(d.rows)) return;
+        rows = d.rows.slice(-8).map((r) => ({
+          id: nextId++, t0: null,
+          label: r.l && typeof r.l.p === 'string' && ['o', 'r', 'v'].includes(r.l.k) ? { p: r.l.p, k: r.l.k } : null,
+          notes: (Array.isArray(r.n) ? r.n : [])
+            .filter((x) => Array.isArray(x) && Number.isFinite(x[0]) && Number.isFinite(x[1]) && x[0] >= MIDI_MIN && x[0] <= MIDI_MAX)
+            .map((x) => ({ midi: Math.round(x[0]), t: Math.max(0, x[1]), held: false })),
+        }));
+        while (rows.length > S.dRows) rows.shift();
+        fresh = rows.length > 0;
+      } catch (e) { rows = []; }
+    }
+
+    let raf = 0;
+    function draw() { if (!raf) raf = requestAnimationFrame(render); }
+    let geo = null; // siste tegning, brukes til å finne linje ved trykk
+    function fitFont(text, weight, size, maxW) {
+      g.font = weight + ' ' + size + 'px -apple-system, system-ui, sans-serif';
+      const w = g.measureText(text).width;
+      if (w > maxW) { size = Math.max(8, size * maxW / w); g.font = weight + ' ' + size + 'px -apple-system, system-ui, sans-serif'; }
+      return size;
+    }
+    function render() {
+      raf = 0;
+      if (!S.disp) return;
+      const W = stage.clientWidth, H = stage.clientHeight;
+      if (!W || !H) return;
+      const dpr = window.devicePixelRatio || 1;
+      const cw = Math.round(W * dpr), ch = Math.round(H * dpr);
+      if (canvas.width !== cw || canvas.height !== ch) { canvas.width = cw; canvas.height = ch; }
+      g.setTransform(dpr, 0, 0, dpr, 0, 0);
+      g.clearRect(0, 0, W, H);
+      if (S.dMode !== 'live') return;
+      const nRows = S.dRows;
+      const rowH = H / nRows;
+      const gutter = Math.round(Math.min(120, Math.max(60, W * 0.12)));
+
+      // Loddrett område: tangentområdet (+ notelinjene, + toner som ligger utenfor)
+      let pLo = staffPos(S.lo).pos, pHi = staffPos(S.hi).pos;
+      if (S.dGrid === 'staff') { pLo = Math.min(pLo, STAFF_LO); pHi = Math.max(pHi, STAFF_HI); }
+      for (const r of rows) for (const n of r.notes) { const p = staffPos(n.midi).pos; pLo = Math.min(pLo, p); pHi = Math.max(pHi, p); }
+      const span = Math.max(1, pHi - pLo);
+      const nameH = S.dNames ? 16 : 0;
+      const step = Math.max(2.5, Math.min(13, (rowH - 14 - nameH) / (span + 2)));
+      const rx = step * 1.4, ry = step * 1.02;
+
+      // Vannrett: fast avstand (følger notestørrelsen). Krymper bare hvis den lengste linjen ikke får plass,
+      // og da i faste trinn, så notene ikke glir mens du spiller.
+      const padL = Math.round(rx + step * 2.2 + 8), padR = Math.round(rx + 10);
+      const avail = Math.max(40, W - gutter - padL - padR);
+      let longest = 0;
+      for (const r of rows) for (const n of r.notes) longest = Math.max(longest, n.t);
+      const need = longest / 1000 + 0.15;
+      let pps = step * 12; // piksler per sekund
+      while (need * pps > avail && pps > 1) pps /= 1.25;
+      geo = { rowH, gutter, nRows, pps, step };
+
+      const yOf = (top, p) => top + (rowH - span * step - nameH) / 2 + (pHi - p) * step;
+      for (let i = 0; i < nRows; i++) {
+        const top = i * rowH, r = rows[i], L = labelOf(r);
+        // bakgrunn
+        if (L) {
+          fillKind(gutter, top, W - gutter, rowH, L.t, L.kind, false);
+          fillKind(0, top, gutter, rowH, L.t, L.kind, true);
+        } else {
+          g.fillStyle = '#f3f1ea';
+          g.fillRect(0, top, gutter, rowH);
+        }
+        // hjelpelinjer
+        if (S.dGrid === 'keys') {
+          for (let p = pLo; p <= pHi; p++) {
+            const y = Math.round(yOf(top, p)) + 0.5, isC = ((p % 7) + 7) % 7 === 0;
+            g.strokeStyle = isC ? 'rgba(40,44,52,0.34)' : 'rgba(40,44,52,0.11)';
+            g.lineWidth = isC ? 1.6 : 1;
+            g.beginPath(); g.moveTo(gutter, y); g.lineTo(W, y); g.stroke();
+            if (isC && step >= 6) {
+              g.font = '600 ' + Math.min(12, step * 1.1) + 'px -apple-system, system-ui, sans-serif';
+              g.fillStyle = 'rgba(40,44,52,0.45)';
+              g.textAlign = 'right'; g.textBaseline = 'bottom';
+              g.fillText('C' + (Math.floor(p / 7) - 1), W - 5, y - 1);
+            }
+          }
+        } else if (S.dGrid === 'staff') {
+          g.strokeStyle = 'rgba(30,33,40,0.6)'; g.lineWidth = 1.2;
+          g.beginPath();
+          for (let p = STAFF_LO; p <= STAFF_HI; p += 2) { const y = Math.round(yOf(top, p)) + 0.5; g.moveTo(gutter + 8, y); g.lineTo(W - 8, y); }
+          g.stroke();
+        }
+        // skillelinje
+        if (i > 0) {
+          g.strokeStyle = 'rgba(60,55,40,0.13)'; g.lineWidth = 1;
+          g.beginPath(); g.moveTo(0, Math.round(top) + 0.5); g.lineTo(W, Math.round(top) + 0.5); g.stroke();
+        }
+        // navn i venstre felt
+        if (L) {
+          const main = L.kind === 'o' ? partName(L.part) : KIND_NAME[L.kind];
+          const sub = L.kind === 'o' ? '' : partName(L.part);
+          const two = sub && rowH >= 40;
+          g.fillStyle = L.t.ink;
+          g.textAlign = 'center'; g.textBaseline = 'middle';
+          fitFont(main, 700, Math.min(15, rowH / 3.2), gutter - 10);
+          g.fillText(main, gutter / 2, top + rowH / 2 - (two ? 8 : 0));
+          if (two) {
+            fitFont(sub, 500, Math.min(12, rowH / 4), gutter - 10);
+            g.fillText(sub, gutter / 2, top + rowH / 2 + 9);
+          }
+        } else if (r) {
+          g.font = '600 13px -apple-system, system-ui, sans-serif';
+          g.fillStyle = '#b4b0a6';
+          g.textAlign = 'center'; g.textBaseline = 'middle';
+          g.fillText(String(i + 1), gutter / 2, top + rowH / 2);
+        }
+      }
+      if (!rows.length) {
+        const cx = gutter + (W - gutter) / 2;
+        const l1 = 'Spill, så vises tonene her.';
+        const l2 = 'Ny linje: knappen «Ny linje» eller en pause. Trykk i venstre felt for å sette navn.';
+        g.font = '400 13px -apple-system, system-ui, sans-serif';
+        const bw = Math.min(W - gutter - 12, Math.max(g.measureText(l2).width, 200) + 24);
+        g.fillStyle = 'rgba(253,252,248,0.92)';
+        g.fillRect(cx - bw / 2, H / 2 - 26, bw, 52);
+        g.fillStyle = '#9a9ea6';
+        g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.font = '500 15px -apple-system, system-ui, sans-serif';
+        g.fillText(l1, cx, H / 2 - 11, W - gutter - 16);
+        g.font = '400 13px -apple-system, system-ui, sans-serif';
+        g.fillText(l2, cx, H / 2 + 12, W - gutter - 16);
+        return;
+      }
+      rows.forEach((r, i) => {
+        const top = i * rowH;
+        for (const n of r.notes) {
+          const sp = staffPos(n.midi);
+          const x = gutter + padL + (n.t / 1000) * pps;
+          const y = yOf(top, sp.pos);
+          if (S.dGrid === 'staff' && (sp.pos < STAFF_LO - 1 || sp.pos > STAFF_HI + 1)) {
+            // hjelpelinjer (som på noter) for toner over eller under systemet
+            g.strokeStyle = 'rgba(30,33,40,0.6)'; g.lineWidth = 1.2;
+            g.beginPath();
+            const from = sp.pos < STAFF_LO ? STAFF_LO - 2 : STAFF_HI + 2, dir = sp.pos < STAFF_LO ? -2 : 2;
+            for (let q = from; dir < 0 ? q >= sp.pos : q <= sp.pos; q += dir) {
+              const yy = Math.round(yOf(top, q)) + 0.5;
+              g.moveTo(x - rx - step * 0.7, yy); g.lineTo(x + rx + step * 0.7, yy);
+            }
+            g.stroke();
+          }
+          g.fillStyle = n.held ? '#2f6fb5' : '#1d2026';
+          g.beginPath(); g.ellipse(x, y, rx, ry, -0.33, 0, Math.PI * 2); g.fill();
+          if (sp.acc) {
+            g.font = Math.round(step * 2.8) + 'px "Apple Symbols", "Segoe UI Symbol", serif';
+            g.textAlign = 'right'; g.textBaseline = 'middle';
+            g.fillText(sp.acc, x - rx - step * 0.25, y);
+          }
+          if (S.dNames) {
+            g.font = '600 12px -apple-system, system-ui, sans-serif';
+            g.fillStyle = '#5f646d';
+            g.textAlign = 'center'; g.textBaseline = 'top';
+            g.fillText(PC_NAME[pc(n.midi)], x, y + ry + 3);
+          }
+        }
+      });
+    }
+
+    // ----- Meny: navn på en linje -----
+    const menu = document.getElementById('dMenu');
+    const menuList = document.getElementById('dMenuList');
+    const menuHead = document.getElementById('dMenuHead');
+    const menuNone = document.getElementById('dMenuNone');
+    let menuRow = null;
+    const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    function openMenu(i) {
+      const r = rows[i];
+      if (!r || !geo) return;
+      menuRow = r;
+      menuHead.textContent = 'Linje ' + (i + 1) + ': velg navn';
+      const cur = r.label;
+      menuList.innerHTML = S.dParts.length ? S.dParts.map((p) => {
+        const t = tones(p.color), nm = esc(partName(p));
+        const sel = (k) => (cur && cur.p === p.id && cur.k === k ? ' sel' : '');
+        return '<div class="mrow">' +
+          '<button class="mbtn' + sel('o') + '" data-p="' + p.id + '" data-k="o" style="background:' + t.base + ';color:' + t.ink + '">' + nm + '</button>' +
+          '<button class="mbtn' + sel('r') + '" data-p="' + p.id + '" data-k="r" style="background:' + t.pale + ';color:' + t.ink + '">Repetisjon<small>' + nm + '</small></button>' +
+          '<button class="mbtn' + sel('v') + '" data-p="' + p.id + '" data-k="v" style="background:repeating-linear-gradient(135deg,' + t.base + ' 0 6px,' + t.pale + ' 6px 12.7px);color:' + t.ink + '">Variasjon<small>' + nm + '</small></button>' +
+          '</div>';
+      }).join('') : '<p class="mhead">Ingen deler. Legg til under ⚙ → Visning.</p>';
+      menuNone.classList.toggle('sel', !cur);
+      menu.hidden = false;
+      const sr = stage.getBoundingClientRect();
+      const mh = menu.offsetHeight, mw = menu.offsetWidth;
+      const top = Math.max(8, Math.min(window.innerHeight - mh - 8, sr.top + i * geo.rowH));
+      const left = Math.max(8, Math.min(window.innerWidth - mw - 8, sr.left + geo.gutter + 6));
+      menu.style.top = top + 'px';
+      menu.style.left = left + 'px';
+    }
+    function closeMenu() { menu.hidden = true; menuRow = null; }
+    function pickLabel(label) {
+      if (menuRow) { menuRow.label = label; changed(); }
+      closeMenu();
+    }
+    menuList.addEventListener('click', (e) => {
+      const b = e.target.closest('.mbtn');
+      if (b) pickLabel({ p: b.dataset.p, k: b.dataset.k });
+    });
+    menuNone.addEventListener('click', () => pickLabel(null));
+    const outside = (e) => { if (!menu.hidden && !menu.contains(e.target)) closeMenu(); };
+    document.addEventListener('pointerdown', outside, true);
+    document.addEventListener('touchstart', outside, { capture: true, passive: true });
+    function tapGutter(y) {
+      if (!geo) return;
+      const i = Math.floor(y / geo.rowH);
+      if (rows[i]) openMenu(i);
+    }
+
+    // ----- «Bilder» -----
+    let images = []; // { name, url }
+    let idx = 0;
+    const DB_NAME = IMG_DB, STORE = 'images';
+    function openDb() {
+      return new Promise((res, rej) => {
+        const r = indexedDB.open(DB_NAME, 1);
+        r.onupgradeneeded = () => r.result.createObjectStore(STORE, { keyPath: 'i' });
+        r.onsuccess = () => res(r.result);
+        r.onerror = () => rej(r.error);
+      });
+    }
+    function txDone(tx) {
+      return new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = () => rej(tx.error); tx.onabort = () => rej(tx.error); });
+    }
+    async function loadImages() {
+      let all = [];
+      try {
+        const db = await openDb();
+        const tx = db.transaction(STORE);
+        const q = tx.objectStore(STORE).getAll();
+        await txDone(tx);
+        all = q.result || [];
+        db.close();
+      } catch (e) { all = []; }
+      images.forEach((x) => URL.revokeObjectURL(x.url));
+      images = all.sort((a, b) => a.i - b.i).map((r) => ({ name: r.name, url: URL.createObjectURL(r.blob) }));
+      idx = Math.min(S.dImg, Math.max(0, images.length - 1));
+      showImage();
+      renderSettings();
+    }
+    const collator = new Intl.Collator('nb', { numeric: true, sensitivity: 'base' });
+    async function saveImages(files) {
+      const list = files.map((f, k) => ({ f, k }))
+        .sort((a, b) => collator.compare(a.f.name, b.f.name) || a.k - b.k)
+        .map((x) => x.f);
+      const blobs = [];
+      for (const f of list) blobs.push({ name: f.name, blob: new Blob([await f.arrayBuffer()], { type: f.type || 'image/png' }) });
+      const db = await openDb();
+      const tx = db.transaction(STORE, 'readwrite');
+      const st = tx.objectStore(STORE);
+      st.clear();
+      blobs.forEach((b, i) => st.put({ i, name: b.name, blob: b.blob }));
+      await txDone(tx);
+      db.close();
+      try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
+      S.dImg = 0; saveSettings();
+      await loadImages();
+    }
+    async function clearImages() {
+      try {
+        const db = await openDb();
+        const tx = db.transaction(STORE, 'readwrite');
+        tx.objectStore(STORE).clear();
+        await txDone(tx);
+        db.close();
+      } catch (e) {}
+      S.dImg = 0; saveSettings();
+      await loadImages();
+    }
+    function showImage() {
+      if (images.length) {
+        const u = images[idx].url;
+        if (img.getAttribute('src') !== u) img.src = u;
+        empty.hidden = true;
+        count.textContent = (idx + 1) + ' / ' + images.length;
+      } else {
+        img.removeAttribute('src');
+        empty.hidden = false;
+        count.textContent = '0 / 0';
+      }
+    }
+    function go(d) {
+      if (!images.length) return;
+      const n = Math.min(images.length - 1, Math.max(0, idx + d));
+      if (n === idx) return;
+      idx = n; S.dImg = idx; saveSettings();
+      showImage();
+    }
+
+    // ----- Berøring i visningsfeltet -----
+    let t0 = null;
+    stage.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      const t = e.changedTouches[0];
+      t0 = { x: t.clientX, y: t.clientY, id: t.identifier };
+    }, { passive: false });
+    stage.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
+    stage.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      for (const t of e.changedTouches) if (t0 && t.identifier === t0.id) { gesture(t0, t.clientX, t.clientY); t0 = null; }
+    }, { passive: false });
+    stage.addEventListener('touchcancel', () => { t0 = null; });
+    let p0 = null;
+    stage.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'touch') p0 = { x: e.clientX, y: e.clientY }; });
+    stage.addEventListener('pointerup', (e) => { if (e.pointerType !== 'touch' && p0) { gesture(p0, e.clientX, e.clientY); p0 = null; } });
+    function gesture(a, x, y) {
+      const dx = x - a.x, dy = y - a.y;
+      const r = stage.getBoundingClientRect();
+      if (S.dMode === 'img') {
+        if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) go(dx < 0 ? 1 : -1);
+      } else if (Math.abs(dx) < 12 && Math.abs(dy) < 12 && geo && a.x - r.left < geo.gutter) {
+        tapGutter(a.y - r.top);
+      }
+    }
+    document.addEventListener('keydown', (e) => {
+      if (!S.disp || S.dMode !== 'img' || !settingsEl.hidden) return;
+      if (e.key === 'ArrowRight' || e.key === ' ') { go(1); e.preventDefault(); }
+      if (e.key === 'ArrowLeft') { go(-1); e.preventDefault(); }
+    });
+
+    segBtns.forEach((b) => onPress(b, () => { S.dMode = b.dataset.mode; saveSettings(); apply(); }));
+    const bGridKeys = document.getElementById('dGridKeys');
+    const bGridStaff = document.getElementById('dGridStaff');
+    const bFreeze = document.getElementById('dFreeze');
+    const bNewRow = document.getElementById('dNewRow');
+    onPress(bGridKeys, () => setGrid('keys'));
+    onPress(bGridStaff, () => setGrid('staff'));
+    onPress(bFreeze, () => setFrozen(!S.dFrozen));
+    onPress(document.getElementById('dNewRow'), newRow);
+    onPress(document.getElementById('dUndo'), undo);
+    onPress(document.getElementById('dClear'), clear);
+    onPress(document.getElementById('dPrev'), () => go(-1));
+    onPress(document.getElementById('dNext'), () => go(1));
+
+    function apply() {
+      document.body.classList.toggle('disp', S.disp);
+      document.body.classList.toggle('side', S.dSide);
+      document.body.classList.toggle('mode-live', S.dMode === 'live');
+      document.body.classList.toggle('mode-img', S.dMode === 'img');
+      segBtns.forEach((b) => b.classList.toggle('on', b.dataset.mode === S.dMode));
+      const tog = (b, on) => { b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); };
+      tog(bGridKeys, S.dGrid === 'keys');
+      tog(bGridStaff, S.dGrid === 'staff');
+      tog(bFreeze, S.dFrozen);
+      bFreeze.textContent = S.dFrozen ? 'Frosset' : 'Frys';
+      bNewRow.classList.toggle('dim', S.dFrozen);
+      if (S.dMode !== 'live' || !S.disp) closeMenu();
+      showImage();
+      draw();
+    }
+
+    // ----- Innstillinger -----
+    const chkDisp = document.getElementById('chkDisp');
+    const selGap = document.getElementById('selGap');
+    const selRows = document.getElementById('selRows');
+    const chkNames = document.getElementById('chkNames');
+    const outImgs = document.getElementById('outImgs');
+    const fileImgs = document.getElementById('fileImgs');
+    const partsList = document.getElementById('partsList');
+    function renderParts() {
+      partsList.innerHTML = S.dParts.map((p, i) =>
+        '<div class="part" data-i="' + i + '">' +
+        '<button class="swatch" data-act="color" style="background:' + tones(p.color).base + '" aria-label="Farge: ' + PART_COLORS[p.color][0] + '. Trykk for neste farge."></button>' +
+        '<input type="text" maxlength="24" value="' + esc(p.name) + '" placeholder="Del" aria-label="Navn på del ' + (i + 1) + '">' +
+        '<button class="btn mini" data-act="up" aria-label="Flytt opp"' + (i === 0 ? ' disabled' : '') + '>▲</button>' +
+        '<button class="btn mini" data-act="down" aria-label="Flytt ned"' + (i === S.dParts.length - 1 ? ' disabled' : '') + '>▼</button>' +
+        '<button class="btn mini" data-act="del" aria-label="Fjern">✕</button>' +
+        '</div>').join('') || '<p class="hint">Ingen deler.</p>';
+    }
+    partsList.addEventListener('click', (e) => {
+      const b = e.target.closest('button');
+      const item = e.target.closest('.part');
+      if (!b || !item) return;
+      const i = Number(item.dataset.i), P = S.dParts;
+      if (b.dataset.act === 'color') {
+        // neste farge som ingen andre deler bruker (ellers bare neste)
+        const keys = Object.keys(PART_COLORS), used = new Set(P.filter((x, k) => k !== i).map((x) => x.color));
+        const from = keys.indexOf(P[i].color);
+        let next = keys[(from + 1) % keys.length];
+        for (let k = 1; k < keys.length; k++) { const c = keys[(from + k) % keys.length]; if (!used.has(c)) { next = c; break; } }
+        P[i].color = next;
+      } else if (b.dataset.act === 'up' && i > 0) {
+        [P[i - 1], P[i]] = [P[i], P[i - 1]];
+      } else if (b.dataset.act === 'down' && i < P.length - 1) {
+        [P[i + 1], P[i]] = [P[i], P[i + 1]];
+      } else if (b.dataset.act === 'del') {
+        P.splice(i, 1);
+      } else return;
+      saveSettings(); renderParts(); draw();
+    });
+    partsList.addEventListener('input', (e) => {
+      const item = e.target.closest('.part');
+      if (!item || e.target.tagName !== 'INPUT') return;
+      S.dParts[Number(item.dataset.i)].name = e.target.value.slice(0, 24);
+      saveSettings(); draw();
+    });
+    document.getElementById('btnAddPart').addEventListener('click', () => {
+      if (S.dParts.length >= 12) return;
+      let k = 1; while (S.dParts.some((p) => p.id === 'p' + k)) k++;
+      const used = new Set(S.dParts.map((p) => p.color));
+      const color = Object.keys(PART_COLORS).find((c) => !used.has(c)) || 'grey';
+      S.dParts.push({ id: 'p' + k, name: 'Del ' + (S.dParts.length + 1), color });
+      saveSettings(); renderParts(); draw();
+    });
+    document.getElementById('btnResetParts').addEventListener('click', () => {
+      if (!window.confirm('Tilbakestille delene til Motiv, Kontrast og Slutt?')) return;
+      S.dParts = defaultParts();
+      saveSettings(); renderParts(); draw();
+    });
+    const selSide = document.getElementById('selSide');
+    selSide.addEventListener('change', () => { S.dSide = selSide.value === 'side'; saveSettings(); apply(); });
+    function renderSettings() {
+      chkDisp.checked = S.disp;
+      selSide.value = S.dSide ? 'side' : 'top';
+      selGap.value = String(S.dGap);
+      selRows.value = String(S.dRows);
+      chkNames.checked = S.dNames;
+      if (!partsList.contains(document.activeElement)) renderParts();
+      outImgs.textContent = images.length ? images.length + ' bilde' + (images.length === 1 ? '' : 'r') + ' lagret' : 'ingen bilder lagret';
+    }
+    chkDisp.addEventListener('change', () => { S.disp = chkDisp.checked; saveSettings(); apply(); });
+    selGap.addEventListener('change', () => { S.dGap = Number(selGap.value); saveSettings(); });
+    selRows.addEventListener('change', () => {
+      S.dRows = Number(selRows.value); saveSettings();
+      if (rows.length > S.dRows) { remember(); while (rows.length > S.dRows) rows.shift(); }
+      changed();
+    });
+    chkNames.addEventListener('change', () => { S.dNames = chkNames.checked; saveSettings(); draw(); });
+    document.getElementById('btnPickImgs').addEventListener('click', () => fileImgs.click());
+    fileImgs.addEventListener('change', async () => {
+      const files = [...fileImgs.files];
+      fileImgs.value = '';
+      if (!files.length) return;
+      outImgs.textContent = 'lagrer ' + files.length + ' bilder …';
+      try { await saveImages(files); } catch (e) { outImgs.textContent = 'kunne ikke lagre bildene (' + (e && e.message || e) + ')'; }
+    });
+    document.getElementById('btnClearImgs').addEventListener('click', () => {
+      if (!images.length) return;
+      if (window.confirm('Fjerne alle ' + images.length + ' bildene fra visningen?')) clearImages();
+    });
+
+    if ('ResizeObserver' in window) new ResizeObserver(() => draw()).observe(stage);
+    window.addEventListener('resize', () => { closeMenu(); draw(); });
+    loadRows();
+
+    return {
+      down, up, draw, apply, loadImages, renderSettings,
+      rows: () => rows, images: () => images, index: () => idx, newRow, undo, clear, go, tapGutter, setFrozen, setGrid,
+      closeMenu, saveRows, geo: () => geo,
+    };
+  })();
+
+  // ---------- Oppstart ----------
+  fillSelects();
+  renderTransp();
+  applyPadsVisible();
+  Vis.apply();
+  Vis.loadImages();
+  layoutKeys();
+  if ('ResizeObserver' in window) new ResizeObserver(() => layoutKeys()).observe(kb);
+  window.addEventListener('resize', layoutKeys);
+  prefetch();
+  Promise.all(neededSamples().map((m) => fetchBytes(m).catch(() => null))).then((r) => {
+    startHint.textContent = r.every(Boolean) ? 'Lyden er klar' : 'Noen lyder mangler. Sjekk nettet.';
+  });
+  updateStatus();
+
+  // Til testing
+  window.__piano = {
+    A, S, press, release, setSustain, restartAudio, startAudio, neededSamples, hitTest, keys: () => keys, VERSION,
+    togglePad, pad: () => ({ activePad, activeChord }), PADS, Vis,
+  };
+})();
+</script>
+</body>
+</html>

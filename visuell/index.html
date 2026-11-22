@@ -30,8 +30,8 @@
     --white-key: #f7f7f5;
     --white-key-2: #e6e6e2;
     --white-down: #bcd6f2;
-    --c-key: #d9dade;      /* C-tangentene er litt grå, så C er lett å finne */
-    --c-key-2: #c9cacf;
+    --c-key: #d0dbea;      /* C-tangentene er svakt blågrå (samme farge som C-linjene i «Rutenett») */
+    --c-key-2: #c0ccdf;
     --black-key: #24262b;
     --black-key-2: #0c0d10;
     --black-down: #3d6694;
@@ -186,8 +186,9 @@
   }
   .wk:first-child { border-left: 0; }
   .wk.c { background: linear-gradient(180deg, var(--c-key) 0%, var(--c-key) 82%, var(--c-key-2) 100%); }
-  .wk.c .lbl { color: #6c717b; }
+  .wk.c .lbl { color: #5b7397; }
   .wk.down { background: linear-gradient(180deg, var(--white-down) 0%, #a9c8ea 100%); }
+  .wk.c.down { background: linear-gradient(180deg, #a6c5ea 0%, #8fb4e0 100%); }
   .bk {
     z-index: 2;
     background: linear-gradient(180deg, var(--black-key) 0%, var(--black-key-2) 100%);
@@ -217,18 +218,31 @@
     color: #2a2d33;
   }
   body.disp #main { justify-content: flex-start; }
-  body.disp #pads { flex: 0 0 auto; height: clamp(44px, 12vh, 110px); }
-  body.disp #kb { flex: 0 0 auto; height: clamp(100px, 36vh, 340px); }
+  /* Over: høyden deles etter «Størrelse på visningsfeltet» (flex settes i applyLayout) */
+  body.disp:not(.side) #pads { max-height: 110px; }
+  body.disp:not(.side) #kb { min-height: 100px; }
   :root { --paper: #fdfcf8; --ink: #1d2026; --ink-held: #2f6fb5; }
-  /* Visningsfeltet til venstre for pads og tangenter (valg i innstillinger) */
+  /* Visningsfeltet til venstre for pads og tangenter (valg i innstillinger).
+     Bredden deles etter «Størrelse på visningsfeltet», og knappene ligger over pads. */
   body.disp.side #main {
     display: grid;
-    grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) auto auto; /* tomrom øverst til høyre, som ellers i høye vinduer */
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) auto auto auto; /* tomrom øverst til høyre, som ellers i høye vinduer */
+    padding-left: 5px;
   }
-  body.disp.side #display { grid-column: 1; grid-row: 1 / span 3; min-height: 0; }
-  body.disp.side #pads { grid-column: 2; grid-row: 2; height: clamp(60px, 24vh, 170px); }
-  body.disp.side #kb { grid-column: 2; grid-row: 3; height: 62vh; }
+  body.disp.side #display { grid-column: 1; grid-row: 1 / span 4; min-height: 0; }
+  body.disp.side #strip {
+    grid-column: 2; grid-row: 2;
+    flex-direction: row;
+    width: auto;
+    height: clamp(50px, 10vh, 80px);
+    padding: 0;
+  }
+  body.disp.side #strip .grab { display: none; }
+  body.disp.side #strip .ctl { max-height: none; }
+  body.disp.side #strip .row { flex: 1.3 1 0; max-height: none; }
+  body.disp.side #pads { grid-column: 2; grid-row: 3; height: clamp(60px, 24vh, 170px); }
+  body.disp.side #kb { grid-column: 2; grid-row: 4; height: 62vh; }
   .dbar {
     flex: 0 0 auto;
     display: flex;
@@ -308,6 +322,33 @@
     padding: 16px; color: #8a8f98; font-size: 14px; line-height: 1.45;
   }
   #dEmpty[hidden] { display: none !important; }
+  /* «Bilder» samlet i linjer: én plass per linje i «Spill» (to per linje når feltet ligger over) */
+  #dSlots { position: absolute; inset: 0; display: grid; }
+  body:not(.mode-img) #dSlots, body.img-rows #dImg, body:not(.img-rows) #dSlots { display: none; }
+  .slot { position: relative; min-width: 0; min-height: 0; padding: 3px 6px; }
+  .slot.bt { border-top: 1px solid rgba(60,55,40,0.16); }
+  .slot.bl { border-left: 1px solid rgba(60,55,40,0.16); }
+  .slot img { display: block; width: 100%; height: 100%; object-fit: contain; object-position: left center; }
+  .slot img[hidden] { display: none; }
+  /* «Ikke angre likevel» (hold inne Angre) */
+  #dRedo {
+    position: fixed; z-index: 40;
+    background: #fff; border-radius: 12px; padding: 6px;
+    box-shadow: 0 10px 34px rgba(0,0,0,0.32), 0 0 0 1px rgba(0,0,0,0.06);
+  }
+  #dRedo[hidden] { display: none; }
+  #dRedo button {
+    border: 0; border-radius: 8px; min-height: 44px; padding: 6px 14px;
+    background: #2f6fb5; color: #fff;
+    font: 600 15px/1.2 -apple-system, system-ui, sans-serif; cursor: pointer; touch-action: manipulation;
+  }
+  #dRedo button:disabled { background: #f1f0ec; color: #8a8f98; }
+  /* Innstillinger: liste over bilder */
+  .imglist { display: grid; gap: 5px; }
+  .imgitem { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .imgitem img { flex: 0 0 auto; width: 72px; height: 30px; object-fit: contain; background: #fff; border-radius: 5px; }
+  .imgitem span { flex: 1 1 auto; min-width: 0; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .imgitem .mini { flex: 0 0 auto; width: 38px; height: 34px; padding: 0; font-size: 15px; }
 
   /* ---------- Startskjerm ---------- */
   #start {
@@ -440,7 +481,8 @@
       <div class="dstage" id="dStage">
         <canvas id="dCanvas"></canvas>
         <img id="dImg" alt="">
-        <div id="dEmpty" hidden>Ingen bilder ennå.<br>Trykk ⚙ → Visning → «Velg bilder …»</div>
+        <div id="dSlots"></div>
+        <div id="dEmpty" hidden></div>
       </div>
     </div>
     <div id="pads">
@@ -456,6 +498,10 @@
   <div class="mhead" id="dMenuHead">Linje</div>
   <div id="dMenuList"></div>
   <button class="mbtn none" id="dMenuNone">Uten navn</button>
+</div>
+
+<div id="dRedo" hidden role="menu" aria-label="Ikke angre likevel">
+  <button id="dRedoBtn">Ikke angre likevel</button>
 </div>
 
 <div id="start" role="button" aria-label="Start pianoet">
@@ -529,14 +575,19 @@
     <section class="card wide">
       <h2>Visning</h2>
       <div class="field">
-        <label class="check"><input type="checkbox" id="chkDisp"> Vis visningsfelt over pads og tangenter</label>
+        <label class="check"><input type="checkbox" id="chkDisp"> Vis visningsfelt</label>
       </div>
       <div class="field">
         <label for="selSide">Plassering av visningsfeltet</label>
         <select id="selSide">
           <option value="top">Over pads og tangenter</option>
-          <option value="side">Til venstre for pads og tangenter</option>
+          <option value="side">Til venstre for pads og tangenter (knappene flyttes over pads)</option>
         </select>
+      </div>
+      <div class="field">
+        <label for="rngDSize">Størrelse på visningsfeltet <output id="outDSize"></output></label>
+        <input type="range" id="rngDSize" min="30" max="70" step="5">
+        <p class="hint">Gjelder plasseringen som er valgt over. Resten går til pads og tangenter.</p>
       </div>
       <div class="field">
         <label for="selGap">«Spill»: ny linje etter pause</label>
@@ -549,7 +600,7 @@
         </select>
       </div>
       <div class="field">
-        <label for="selRows">«Spill»: antall linjer</label>
+        <label for="selRows">Antall linjer («Spill» og «Bilder»)</label>
         <select id="selRows">
           <option value="2">2</option><option value="3">3</option><option value="4">4</option>
           <option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option>
@@ -568,11 +619,19 @@
         <label class="check"><input type="checkbox" id="chkNames"> «Spill»: vis tonenavn under notene</label>
       </div>
       <div class="field">
+        <label for="selImgLay">«Bilder»: visning</label>
+        <select id="selImgLay">
+          <option value="rows">Samlet i linjer, som i «Spill» (bildene blir stående)</option>
+          <option value="one">Ett og ett (hvert bilde fyller hele feltet)</option>
+        </select>
+      </div>
+      <div class="field">
         <label>«Bilder»: <output id="outImgs"></output></label>
         <input type="file" id="fileImgs" accept="image/*" multiple hidden>
-        <button class="btn" id="btnPickImgs">Velg bilder …</button>
+        <div id="imgList" class="imglist"></div>
+        <button class="btn" id="btnPickImgs">Legg til bilder …</button>
         <button class="btn" id="btnClearImgs">Fjern alle bilder</button>
-        <p class="hint">Fra Keynote: Del → Eksporter → Bilder (PNG). Bildene vises i filnavn-rekkefølge og lagres på denne iPaden. Safari og Hjem-skjerm-appen har hvert sitt lager, så velg bildene der du skal bruke dem. Lysbilder i bredformat (f.eks. 1920 × 800) fyller feltet best.</p>
+        <p class="hint">Bilder vises i alfabetisk/numerisk rekkefølge basert på filnavn. Bilder i breddeformat fyller feltet best<span id="imgRatio"></span>. Bildene lagres på denne iPaden (Safari og Hjem-skjerm-appen har hvert sitt lager).</p>
       </div>
     </section>
 
@@ -600,8 +659,9 @@
 (() => {
   'use strict';
 
-  const VERSION = 'visuell 0.2 (bygger på 0.4)';
+  const VERSION = 'visuell 0.3 (bygger på 0.4)';
   const STORE_KEY = 'piano.settings.visuell.v1';
+  const SOUND_DEFAULTS_KEY = 'piano.visuell.sounddefaults.v2'; // satt når standardlyd fra 0.3 er tatt i bruk
   const ROWS_KEY = 'piano.visuell.rows.v1';   // det som står i «Spill»-feltet
   const IMG_DB = 'piano-visuell';             // egne bilder (IndexedDB)
 
@@ -628,9 +688,11 @@
   };
 
   // ---------- Innstillinger ----------
-  const DEFAULTS = { lo: 60, hi: 84, tAmt: 4, tOn: false, vol: 75, rev: 0, sLen: 7, pads: true, pVol: 70, pRev: 30,
+  const SOUND_DEFAULTS = { vol: 75, rev: 0, sLen: 5, pVol: 70, pRev: 50 };
+  const DEFAULTS = Object.assign({ lo: 60, hi: 84, tAmt: 4, tOn: false, pads: true,
     disp: true, dMode: 'live', dGap: 2, dRows: 4, dNames: false, dImg: 0,
-    dGrid: 'off', dFrozen: false, dParts: null, dSide: false };
+    dGrid: 'off', dFrozen: false, dParts: null, dSide: false,
+    dSzTop: 50, dSzSide: 50, dImgLay: 'rows' }, SOUND_DEFAULTS);
   // Fargene til deler: lyse pastellfarger. Repetisjon = samme farge, blekere. Variasjon = striper.
   const PART_COLORS = {
     blue: ['Blå', 212, 62], green: ['Grønn', 132, 45], yellow: ['Gul', 46, 85], orange: ['Oransje', 24, 80],
@@ -682,10 +744,13 @@
     o.dGap = [0, 1.5, 2, 3, 4].includes(Number(s.dGap)) ? Number(s.dGap) : DEFAULTS.dGap;
     o.dRows = clampInt(s.dRows, 2, 8, DEFAULTS.dRows);
     o.dNames = s.dNames === true;
-    o.dImg = clampInt(s.dImg, 0, 9999, 0);
+    o.dImg = clampInt(s.dImg, -1, 9999, 0); // -1 = ingen bilder vist ennå («Samlet i linjer»)
     o.dGrid = ['off', 'keys', 'staff'].includes(s.dGrid) ? s.dGrid : 'off';
     o.dFrozen = s.dFrozen === true;
     o.dSide = s.dSide === true;
+    o.dSzTop = clampInt(s.dSzTop, 30, 70, DEFAULTS.dSzTop);
+    o.dSzSide = clampInt(s.dSzSide, 30, 70, DEFAULTS.dSzSide);
+    o.dImgLay = s.dImgLay === 'one' ? 'one' : 'rows';
     o.dParts = sanitizeParts(s.dParts);
     return o;
   }
@@ -701,6 +766,14 @@
     try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) { /* privat modus o.l. */ }
   }
   const S = loadSettings();
+  // Nye standardverdier for lyd (0.3) tas i bruk én gang, også om noe var lagret fra før
+  try {
+    if (!localStorage.getItem(SOUND_DEFAULTS_KEY)) {
+      Object.assign(S, SOUND_DEFAULTS);
+      saveSettings();
+      localStorage.setItem(SOUND_DEFAULTS_KEY, '1');
+    }
+  } catch (e) { /* privat modus o.l. */ }
   let sustainOn = false; // starter alltid av
 
   // ---------- Lydmotor ----------
@@ -1210,6 +1283,7 @@
   function applyPadsVisible() {
     document.body.classList.toggle('nopads', !S.pads);
     if (!S.pads && activePad !== null) togglePad(activePad);
+    applyLayout();
   }
 
   // ---------- Tangentbord (tegning og treff) ----------
@@ -1270,6 +1344,33 @@
       keys.push({ midi: m, white: false, x, w: bw, el });
     }
     kb.appendChild(frag);
+  }
+
+  // ---------- Plassering av knapper, visningsfelt, pads og tangenter ----------
+  const appEl = document.getElementById('app');
+  const mainEl = document.getElementById('main');
+  const stripEl = document.getElementById('strip');
+  const padsEl = document.getElementById('pads');
+  const dispEl = document.getElementById('display');
+  function applyLayout() {
+    const side = S.disp && S.dSide;
+    // Knappene står til venstre, men over pads når visningsfeltet ligger til venstre (sparer bredde)
+    if (side) { if (stripEl.parentNode !== mainEl) mainEl.insertBefore(stripEl, padsEl); }
+    else if (stripEl.parentNode !== appEl) appEl.insertBefore(stripEl, mainEl);
+    mainEl.style.gridTemplateColumns = '';
+    dispEl.style.flex = padsEl.style.flex = kb.style.flex = '';
+    if (!S.disp) return;
+    if (side) {
+      const x = S.dSzSide;
+      mainEl.style.gridTemplateColumns = 'minmax(0, ' + x + 'fr) minmax(0, ' + (100 - x) + 'fr)';
+    } else {
+      // Høyden deles i forholdet visningsfelt : (pads + tangenter). Når tangentene ikke kan bli høyere
+      // (se KEY_RATIO), går resten til visningsfeltet, så ingen plass blir stående tom.
+      const x = S.dSzTop, rest = 100 - x;
+      dispEl.style.flex = x + ' 1 0px';
+      padsEl.style.flex = (rest * 0.25) + ' 1 0px';
+      kb.style.flex = (S.pads ? rest * 0.75 : rest) + ' 1 0px';
+    }
   }
 
   function hitTest(clientX, clientY) {
@@ -1693,8 +1794,10 @@
     }
 
     // ----- «Spill» -----
-    let rows = [];            // { id, t0, label: null | { p: del-id, k: 'o' | 'r' | 'v' }, notes: [{ midi, t, held }] }
+    // notes: t = start (ms fra linjens start), d = lengde (ms, når tangenten er sluppet; til senere avspilling)
+    let rows = [];            // { id, t0, label: null | { p: del-id, k: 'o' | 'r' | 'v' }, notes: [{ midi, t, d, held }] }
     const history = [];       // for «Angre»
+    const future = [];        // for «Ikke angre likevel»
     const held = new Map();   // berørings-id -> note
     let lastOff = 0;
     let fresh = false;        // neste tone starter en ny linje (etter Angre, Frys av o.l.)
@@ -1702,9 +1805,10 @@
     const live = () => S.disp && S.dMode === 'live';
     const copyRows = () => rows.map((r) => ({
       id: r.id, t0: null, label: r.label ? { p: r.label.p, k: r.label.k } : null,
-      notes: r.notes.map((n) => ({ midi: n.midi, t: n.t, held: false })),
+      notes: r.notes.map((n) => ({ midi: n.midi, t: n.t, d: n.d, held: false })),
     }));
-    function remember() { history.push(copyRows()); if (history.length > 40) history.shift(); }
+    const push = (stack, v) => { stack.push(v); if (stack.length > 40) stack.shift(); };
+    function remember() { push(history, copyRows()); future.length = 0; }
     function addRow() {
       remember();
       rows.push({ id: nextId++, t0: null, label: null, notes: [] });
@@ -1717,9 +1821,10 @@
       const pause = S.dGap > 0 && held.size === 0 && lastOff > 0 && now - lastOff > S.dGap * 1000;
       if (!last || ((pause || fresh) && last.notes.length)) addRow();
       fresh = false;
+      future.length = 0; // ny tone: «Ikke angre likevel» gjelder ikke lenger
       const row = rows[rows.length - 1];
       if (row.t0 === null) row.t0 = now - (row.notes.length ? row.notes[row.notes.length - 1].t + 400 : 0);
-      const n = { midi, t: now - row.t0, held: true };
+      const n = { midi, t: now - row.t0, held: true, on: now };
       row.notes.push(n);
       held.set(id, n);
       changed();
@@ -1730,6 +1835,7 @@
       held.delete(id);
       n.held = false;
       lastOff = performance.now();
+      if (n.on) n.d = Math.round(lastOff - n.on);
       changed();
     }
     function newRow() {
@@ -1740,17 +1846,29 @@
       fresh = false;
       changed();
     }
+    // Navn på linjer er ikke med i Angre: linjer som står igjen, beholder navnet de har nå
+    function restore(snapshot) {
+      const labels = new Map(rows.map((r) => [r.id, r.label]));
+      rows = snapshot;
+      for (const r of rows) if (labels.has(r.id)) r.label = labels.get(r.id);
+    }
     function undo() {
       held.clear();
-      if (history.length) {
-        const labels = new Map(rows.map((r) => [r.id, r.label]));
-        rows = history.pop();
-        for (const r of rows) if (labels.has(r.id)) r.label = labels.get(r.id);
-      } else {
-        rows.pop();
-      }
+      if (!history.length && !rows.length) return;
+      push(future, copyRows());
+      if (history.length) restore(history.pop());
+      else rows.pop();
       lastOff = 0;
       fresh = true; // neste tone havner på en ny linje, ikke på linjen over
+      changed();
+    }
+    function redo() {
+      if (!future.length) return;
+      held.clear();
+      push(history, copyRows());
+      restore(future.pop());
+      lastOff = 0;
+      fresh = true;
       changed();
     }
     function clear() {
@@ -1788,7 +1906,7 @@
       try {
         localStorage.setItem(ROWS_KEY, JSON.stringify({
           v: 1,
-          rows: rows.map((r) => ({ l: r.label, n: r.notes.map((n) => [n.midi, Math.round(n.t)]) })),
+          rows: rows.map((r) => ({ l: r.label, n: r.notes.map((n) => (n.d >= 0 ? [n.midi, Math.round(n.t), n.d] : [n.midi, Math.round(n.t)])) })),
         }));
       } catch (e) { /* privat modus o.l. */ }
     }
@@ -1801,7 +1919,7 @@
           label: r.l && typeof r.l.p === 'string' && ['o', 'r', 'v'].includes(r.l.k) ? { p: r.l.p, k: r.l.k } : null,
           notes: (Array.isArray(r.n) ? r.n : [])
             .filter((x) => Array.isArray(x) && Number.isFinite(x[0]) && Number.isFinite(x[1]) && x[0] >= MIDI_MIN && x[0] <= MIDI_MAX)
-            .map((x) => ({ midi: Math.round(x[0]), t: Math.max(0, x[1]), held: false })),
+            .map((x) => ({ midi: Math.round(x[0]), t: Math.max(0, x[1]), d: Number.isFinite(x[2]) ? Math.max(0, x[2]) : undefined, held: false })),
         }));
         while (rows.length > S.dRows) rows.shift();
         fresh = rows.length > 0;
@@ -1865,14 +1983,15 @@
         }
         // hjelpelinjer
         if (S.dGrid === 'keys') {
+          // Svake grå linjer for hver hvite tangent; C-linjene blågrå som C-tangentene på pianoet
           for (let p = pLo; p <= pHi; p++) {
             const y = Math.round(yOf(top, p)) + 0.5, isC = ((p % 7) + 7) % 7 === 0;
-            g.strokeStyle = isC ? 'rgba(40,44,52,0.34)' : 'rgba(40,44,52,0.11)';
-            g.lineWidth = isC ? 1.6 : 1;
+            g.strokeStyle = isC ? 'rgba(74,112,168,0.62)' : 'rgba(40,44,52,0.08)';
+            g.lineWidth = isC ? 1.8 : 1;
             g.beginPath(); g.moveTo(gutter, y); g.lineTo(W, y); g.stroke();
             if (isC && step >= 6) {
               g.font = '600 ' + Math.min(12, step * 1.1) + 'px -apple-system, system-ui, sans-serif';
-              g.fillStyle = 'rgba(40,44,52,0.45)';
+              g.fillStyle = 'rgba(60,95,150,0.85)';
               g.textAlign = 'right'; g.textBaseline = 'bottom';
               g.fillText('C' + (Math.floor(p / 7) - 1), W - 5, y - 1);
             }
@@ -1883,10 +2002,12 @@
           for (let p = STAFF_LO; p <= STAFF_HI; p += 2) { const y = Math.round(yOf(top, p)) + 0.5; g.moveTo(gutter + 8, y); g.lineTo(W - 8, y); }
           g.stroke();
         }
-        // skillelinje
+        // skillelinje (tydeligere når Rutenett eller Notelinjer er på, så linjene ikke blandes)
         if (i > 0) {
-          g.strokeStyle = 'rgba(60,55,40,0.13)'; g.lineWidth = 1;
-          g.beginPath(); g.moveTo(0, Math.round(top) + 0.5); g.lineTo(W, Math.round(top) + 0.5); g.stroke();
+          const strong = S.dGrid !== 'off';
+          g.strokeStyle = strong ? 'rgba(60,55,40,0.4)' : 'rgba(60,55,40,0.13)';
+          g.lineWidth = strong ? 2 : 1;
+          g.beginPath(); g.moveTo(0, Math.round(top) + (strong ? 0 : 0.5)); g.lineTo(W, Math.round(top) + (strong ? 0 : 0.5)); g.stroke();
         }
         // navn i venstre felt
         if (L) {
@@ -1989,7 +2110,7 @@
       menu.style.top = top + 'px';
       menu.style.left = left + 'px';
     }
-    function closeMenu() { menu.hidden = true; menuRow = null; }
+    function closeMenu() { menu.hidden = true; menuRow = null; redoPop.hidden = true; }
     function pickLabel(label) {
       if (menuRow) { menuRow.label = label; changed(); }
       closeMenu();
@@ -1999,9 +2120,47 @@
       if (b) pickLabel({ p: b.dataset.p, k: b.dataset.k });
     });
     menuNone.addEventListener('click', () => pickLabel(null));
-    const outside = (e) => { if (!menu.hidden && !menu.contains(e.target)) closeMenu(); };
+    const outside = (e) => {
+      if (!menu.hidden && !menu.contains(e.target)) closeMenu();
+      if (!redoPop.hidden && !redoPop.contains(e.target)) redoPop.hidden = true;
+    };
     document.addEventListener('pointerdown', outside, true);
     document.addEventListener('touchstart', outside, { capture: true, passive: true });
+
+    // ----- Angre: kort trykk = angre, hold inne = «Ikke angre likevel» -----
+    const bUndo = document.getElementById('dUndo');
+    const redoPop = document.getElementById('dRedo');
+    const redoBtn = document.getElementById('dRedoBtn');
+    const HOLD_MS = 550;
+    let holdTimer = 0;
+    function openRedo() {
+      redoBtn.disabled = !future.length;
+      redoBtn.textContent = future.length ? 'Ikke angre likevel' : 'Ingenting å gjøre om';
+      redoPop.hidden = false;
+      const br = bUndo.getBoundingClientRect();
+      const pw = redoPop.offsetWidth, ph = redoPop.offsetHeight;
+      const below = br.bottom + 6 + ph <= window.innerHeight - 8;
+      redoPop.style.top = (below ? br.bottom + 6 : Math.max(8, br.top - 6 - ph)) + 'px';
+      redoPop.style.left = Math.max(8, Math.min(window.innerWidth - pw - 8, br.right - pw)) + 'px';
+    }
+    function undoDown() {
+      clearTimeout(holdTimer);
+      holdTimer = setTimeout(() => { holdTimer = 0; openRedo(); }, HOLD_MS);
+    }
+    function undoUp() {
+      if (!holdTimer) return; // holdt inne: menyen er åpnet i stedet
+      clearTimeout(holdTimer); holdTimer = 0;
+      undo();
+    }
+    bUndo.addEventListener('touchstart', (e) => { e.preventDefault(); undoDown(); }, { passive: false });
+    bUndo.addEventListener('touchend', (e) => { e.preventDefault(); undoUp(); }, { passive: false });
+    bUndo.addEventListener('touchcancel', () => { clearTimeout(holdTimer); holdTimer = 0; });
+    bUndo.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'touch') { e.preventDefault(); undoDown(); } });
+    bUndo.addEventListener('pointerup', (e) => { if (e.pointerType !== 'touch') undoUp(); });
+    redoBtn.addEventListener('click', () => {
+      redo();
+      if (future.length) openRedo(); else redoPop.hidden = true;
+    });
     function tapGutter(y) {
       if (!geo) return;
       const i = Math.floor(y / geo.rowH);
@@ -2009,8 +2168,16 @@
     }
 
     // ----- «Bilder» -----
+    // «Ett og ett»: hvert bilde fyller feltet. «Samlet i linjer»: bildene kommer fram ett og ett og blir stående,
+    // én plass per linje i «Spill» (to per linje når feltet ligger over). Flere bilder enn plasser: ny side.
     let images = []; // { name, url }
-    let idx = 0;
+    let idx = 0;     // siste bilde som vises (-1 = ingen ennå, bare i «Samlet i linjer»)
+    const slotsEl = document.getElementById('dSlots');
+    const rowsLay = () => S.dImgLay === 'rows';
+    function slotInfo() {
+      const cols = S.dSide ? 1 : 2, n = S.dRows;
+      return { cols, n, lines: Math.ceil(n / cols) };
+    }
     const DB_NAME = IMG_DB, STORE = 'images';
     function openDb() {
       return new Promise((res, rej) => {
@@ -2023,69 +2190,114 @@
     function txDone(tx) {
       return new Promise((res, rej) => { tx.oncomplete = res; tx.onerror = () => rej(tx.error); tx.onabort = () => rej(tx.error); });
     }
-    async function loadImages() {
-      let all = [];
-      try {
-        const db = await openDb();
-        const tx = db.transaction(STORE);
-        const q = tx.objectStore(STORE).getAll();
-        await txDone(tx);
-        all = q.result || [];
-        db.close();
-      } catch (e) { all = []; }
-      images.forEach((x) => URL.revokeObjectURL(x.url));
-      images = all.sort((a, b) => a.i - b.i).map((r) => ({ name: r.name, url: URL.createObjectURL(r.blob) }));
-      idx = Math.min(S.dImg, Math.max(0, images.length - 1));
-      showImage();
-      renderSettings();
+    async function readAll() {
+      const db = await openDb();
+      const tx = db.transaction(STORE);
+      const q = tx.objectStore(STORE).getAll();
+      await txDone(tx);
+      db.close();
+      return (q.result || []).sort((a, b) => a.i - b.i);
     }
-    const collator = new Intl.Collator('nb', { numeric: true, sensitivity: 'base' });
-    async function saveImages(files) {
-      const list = files.map((f, k) => ({ f, k }))
-        .sort((a, b) => collator.compare(a.f.name, b.f.name) || a.k - b.k)
-        .map((x) => x.f);
-      const blobs = [];
-      for (const f of list) blobs.push({ name: f.name, blob: new Blob([await f.arrayBuffer()], { type: f.type || 'image/png' }) });
+    async function writeAll(list) {
       const db = await openDb();
       const tx = db.transaction(STORE, 'readwrite');
       const st = tx.objectStore(STORE);
       st.clear();
-      blobs.forEach((b, i) => st.put({ i, name: b.name, blob: b.blob }));
+      list.forEach((r, i) => st.put({ i, name: r.name, blob: r.blob }));
       await txDone(tx);
       db.close();
+    }
+    async function loadImages() {
+      let all = [];
+      try { all = await readAll(); } catch (e) { all = []; }
+      images.forEach((x) => URL.revokeObjectURL(x.url));
+      images = all.map((r) => ({ name: r.name, url: URL.createObjectURL(r.blob) }));
+      idx = Math.max(-1, Math.min(S.dImg, images.length - 1));
+      showImage();
+      renderSettings();
+    }
+    const collator = new Intl.Collator('nb', { numeric: true, sensitivity: 'base' });
+    const startIdx = () => (rowsLay() ? -1 : 0);
+    // Nye bilder legges til de som er der; alle sorteres etter filnavn (like navn: i den rekkefølgen de kom)
+    async function addImages(files) {
+      const old = await readAll();
+      const add = [];
+      for (const f of files) add.push({ name: f.name, blob: new Blob([await f.arrayBuffer()], { type: f.type || 'image/png' }) });
+      const all = old.concat(add).map((r, k) => ({ r, k }))
+        .sort((a, b) => collator.compare(a.r.name, b.r.name) || a.k - b.k)
+        .map((x) => x.r);
+      await writeAll(all);
       try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
-      S.dImg = 0; saveSettings();
+      S.dImg = startIdx(); saveSettings();
+      await loadImages();
+    }
+    async function removeImage(k) {
+      const all = await readAll();
+      if (k < 0 || k >= all.length) return;
+      all.splice(k, 1);
+      await writeAll(all);
+      S.dImg = Math.min(S.dImg, all.length - 1); saveSettings();
       await loadImages();
     }
     async function clearImages() {
-      try {
-        const db = await openDb();
-        const tx = db.transaction(STORE, 'readwrite');
-        tx.objectStore(STORE).clear();
-        await txDone(tx);
-        db.close();
-      } catch (e) {}
-      S.dImg = 0; saveSettings();
+      try { await writeAll([]); } catch (e) {}
+      S.dImg = startIdx(); saveSettings();
       await loadImages();
     }
+    let slotKey = '';
     function showImage() {
-      if (images.length) {
+      const many = images.length;
+      if (!rowsLay() && idx < 0 && many) idx = 0;
+      count.textContent = (idx + 1) + ' / ' + many;
+      if (!many) {
+        img.removeAttribute('src');
+        slotsEl.textContent = ''; slotKey = '';
+        empty.textContent = 'Ingen bilder ennå. Trykk ⚙ → Visning → «Legg til bilder …»';
+        empty.hidden = false;
+        return;
+      }
+      if (!rowsLay()) {
         const u = images[idx].url;
         if (img.getAttribute('src') !== u) img.src = u;
         empty.hidden = true;
-        count.textContent = (idx + 1) + ' / ' + images.length;
-      } else {
-        img.removeAttribute('src');
-        empty.hidden = false;
-        count.textContent = '0 / 0';
+        return;
       }
+      const { cols, n, lines } = slotInfo();
+      const key = cols + 'x' + n;
+      if (key !== slotKey) {
+        slotKey = key;
+        slotsEl.style.gridTemplateColumns = 'repeat(' + cols + ', minmax(0, 1fr))';
+        slotsEl.style.gridTemplateRows = 'repeat(' + lines + ', minmax(0, 1fr))';
+        let h = '';
+        for (let k = 0; k < n; k++) {
+          h += '<div class="slot' + (k >= cols ? ' bt' : '') + (k % cols ? ' bl' : '') + '"><img alt="" hidden></div>';
+        }
+        slotsEl.innerHTML = h;
+      }
+      const page = idx < 0 ? 0 : Math.floor(idx / n);
+      [...slotsEl.querySelectorAll('img')].forEach((el, k) => {
+        const j = page * n + k;
+        const on = j <= idx && j < many;
+        if (on && el.getAttribute('src') !== images[j].url) el.src = images[j].url;
+        el.hidden = !on;
+      });
+      empty.textContent = many + (many === 1 ? ' bilde' : ' bilder') + ' klar. Trykk i feltet (eller ›) for å vise ett og ett.';
+      empty.hidden = idx >= 0;
     }
     function go(d) {
       if (!images.length) return;
-      const n = Math.min(images.length - 1, Math.max(0, idx + d));
+      const n = Math.min(images.length - 1, Math.max(startIdx(), idx + d));
       if (n === idx) return;
       idx = n; S.dImg = idx; saveSettings();
       showImage();
+    }
+    // Formen (bredde : høyde) som fyller en plass helt, til hjelp når bilder beskjæres
+    function imgRatio() {
+      const W = stage.clientWidth, H = stage.clientHeight;
+      if (!S.disp || !W || !H) return null;
+      if (!rowsLay()) return W / H;
+      const { cols, lines } = slotInfo();
+      return (W / cols - 12) / (H / lines - 6);
     }
 
     // ----- Berøring i visningsfeltet -----
@@ -2109,14 +2321,16 @@
       const r = stage.getBoundingClientRect();
       if (S.dMode === 'img') {
         if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) go(dx < 0 ? 1 : -1);
+        else if (Math.abs(dx) < 12 && Math.abs(dy) < 12) go(1); // trykk = neste bilde
       } else if (Math.abs(dx) < 12 && Math.abs(dy) < 12 && geo && a.x - r.left < geo.gutter) {
         tapGutter(a.y - r.top);
       }
     }
     document.addEventListener('keydown', (e) => {
       if (!S.disp || S.dMode !== 'img' || !settingsEl.hidden) return;
-      if (e.key === 'ArrowRight' || e.key === ' ') { go(1); e.preventDefault(); }
-      if (e.key === 'ArrowLeft') { go(-1); e.preventDefault(); }
+      // piltaster, mellomrom og presentasjonsklikkere (PageDown/PageUp)
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { go(1); e.preventDefault(); }
+      if (e.key === 'ArrowLeft' || e.key === 'PageUp') { go(-1); e.preventDefault(); }
     });
 
     segBtns.forEach((b) => onPress(b, () => { S.dMode = b.dataset.mode; saveSettings(); apply(); }));
@@ -2128,7 +2342,6 @@
     onPress(bGridStaff, () => setGrid('staff'));
     onPress(bFreeze, () => setFrozen(!S.dFrozen));
     onPress(document.getElementById('dNewRow'), newRow);
-    onPress(document.getElementById('dUndo'), undo);
     onPress(document.getElementById('dClear'), clear);
     onPress(document.getElementById('dPrev'), () => go(-1));
     onPress(document.getElementById('dNext'), () => go(1));
@@ -2138,6 +2351,8 @@
       document.body.classList.toggle('side', S.dSide);
       document.body.classList.toggle('mode-live', S.dMode === 'live');
       document.body.classList.toggle('mode-img', S.dMode === 'img');
+      document.body.classList.toggle('img-rows', rowsLay());
+      applyLayout();
       segBtns.forEach((b) => b.classList.toggle('on', b.dataset.mode === S.dMode));
       const tog = (b, on) => { b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); };
       tog(bGridKeys, S.dGrid === 'keys');
@@ -2209,22 +2424,60 @@
       saveSettings(); renderParts(); draw();
     });
     const selSide = document.getElementById('selSide');
-    selSide.addEventListener('change', () => { S.dSide = selSide.value === 'side'; saveSettings(); apply(); });
+    const rngDSize = document.getElementById('rngDSize');
+    const outDSize = document.getElementById('outDSize');
+    const selImgLay = document.getElementById('selImgLay');
+    const imgList = document.getElementById('imgList');
+    const imgRatioEl = document.getElementById('imgRatio');
+    function renderSize() {
+      rngDSize.value = String(S.dSide ? S.dSzSide : S.dSzTop);
+      outDSize.textContent = (S.dSide ? S.dSzSide : S.dSzTop) + ' % av ' + (S.dSide ? 'bredden' : 'høyden');
+    }
+    function renderRatio() {
+      const r = imgRatio();
+      imgRatioEl.textContent = r && r >= 1 ? ' (nå ca. ' + r.toFixed(1).replace('.', ',') + ' : 1, bredde : høyde)' : '';
+    }
+    function renderImgList() {
+      imgList.innerHTML = images.map((x, k) =>
+        '<div class="imgitem" data-k="' + k + '"><img src="' + x.url + '" alt=""><span>' + (k + 1) + '. ' + esc(x.name) + '</span>' +
+        '<button class="btn mini" data-act="del" aria-label="Fjern ' + esc(x.name) + '">✕</button></div>').join('');
+    }
+    selSide.addEventListener('change', () => { S.dSide = selSide.value === 'side'; saveSettings(); apply(); renderSize(); renderRatio(); });
+    rngDSize.addEventListener('input', () => {
+      const v = Number(rngDSize.value);
+      if (S.dSide) S.dSzSide = v; else S.dSzTop = v;
+      saveSettings(); applyLayout(); renderSize(); renderRatio();
+    });
+    selImgLay.addEventListener('change', () => {
+      S.dImgLay = selImgLay.value === 'one' ? 'one' : 'rows';
+      idx = startIdx(); S.dImg = idx; saveSettings();
+      apply(); renderRatio();
+    });
+    imgList.addEventListener('click', (e) => {
+      const b = e.target.closest('button[data-act="del"]'), item = e.target.closest('.imgitem');
+      if (!b || !item) return;
+      const k = Number(item.dataset.k);
+      if (images[k] && window.confirm('Fjerne «' + images[k].name + '»?')) removeImage(k).catch(() => {});
+    });
     function renderSettings() {
       chkDisp.checked = S.disp;
       selSide.value = S.dSide ? 'side' : 'top';
       selGap.value = String(S.dGap);
       selRows.value = String(S.dRows);
       chkNames.checked = S.dNames;
+      selImgLay.value = S.dImgLay;
+      renderSize();
+      renderRatio();
       if (!partsList.contains(document.activeElement)) renderParts();
       outImgs.textContent = images.length ? images.length + ' bilde' + (images.length === 1 ? '' : 'r') + ' lagret' : 'ingen bilder lagret';
+      renderImgList();
     }
-    chkDisp.addEventListener('change', () => { S.disp = chkDisp.checked; saveSettings(); apply(); });
+    chkDisp.addEventListener('change', () => { S.disp = chkDisp.checked; saveSettings(); apply(); renderRatio(); });
     selGap.addEventListener('change', () => { S.dGap = Number(selGap.value); saveSettings(); });
     selRows.addEventListener('change', () => {
       S.dRows = Number(selRows.value); saveSettings();
       if (rows.length > S.dRows) { remember(); while (rows.length > S.dRows) rows.shift(); }
-      changed();
+      changed(); showImage(); renderRatio();
     });
     chkNames.addEventListener('change', () => { S.dNames = chkNames.checked; saveSettings(); draw(); });
     document.getElementById('btnPickImgs').addEventListener('click', () => fileImgs.click());
@@ -2232,8 +2485,8 @@
       const files = [...fileImgs.files];
       fileImgs.value = '';
       if (!files.length) return;
-      outImgs.textContent = 'lagrer ' + files.length + ' bilder …';
-      try { await saveImages(files); } catch (e) { outImgs.textContent = 'kunne ikke lagre bildene (' + (e && e.message || e) + ')'; }
+      outImgs.textContent = 'lagrer ' + files.length + ' bilde' + (files.length === 1 ? '' : 'r') + ' …';
+      try { await addImages(files); } catch (e) { outImgs.textContent = 'kunne ikke lagre bildene (' + (e && e.message || e) + ')'; }
     });
     document.getElementById('btnClearImgs').addEventListener('click', () => {
       if (!images.length) return;
@@ -2246,8 +2499,8 @@
 
     return {
       down, up, draw, apply, loadImages, renderSettings,
-      rows: () => rows, images: () => images, index: () => idx, newRow, undo, clear, go, tapGutter, setFrozen, setGrid,
-      closeMenu, saveRows, geo: () => geo,
+      rows: () => rows, images: () => images, index: () => idx, newRow, undo, redo, clear, go, tapGutter, setFrozen, setGrid,
+      closeMenu, saveRows, geo: () => geo, imgRatio,
     };
   })();
 
