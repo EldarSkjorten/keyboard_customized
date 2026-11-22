@@ -6,6 +6,11 @@ Denne mappen er «det enkleste som funker» til presentasjonen. Nye ideer prøve
 **Åpne:** https://eldarskjorten.github.io/keyboard_customized/visuell/
 **Forrige versjon (0.2), hvis noe ikke virker:** https://eldarskjorten.github.io/keyboard_customized/visuell-0.2/
 
+## Nytt i 0.3.1
+
+- Notelinjene er klar blå og tynne, så de skilles fra de grå skillelinjene mellom linjene i feltet.
+- Ingen forklaringstekst i feltet når det er tomt (heller ikke i «Bilder» før første bilde vises; telleren viser «0 / n»).
+
 ## Nytt i 0.3
 
 - Standardlyd: piano 75 %, romklang av, sustain 5 s. Pads 70 %, romklang 50 %. (Tatt i bruk én gang, også om noe var lagret.)
@@ -33,7 +38,7 @@ Ligger over pads og tangenter, eller til venstre for dem (⚙ → Visning → Pl
   - **Tøm** tømmer feltet.
   - **Frys:** det som står, blir stående mens du spiller fritt. Trykk igjen (eller «Ny linje») for å skrive videre.
   - **Rutenett:** svake linjer for hver hvite tangent, C-linjene blågrå (med navn helt til høyre).
-  - **Notelinjer:** fem notelinjer som i G-nøkkel, med hjelpelinjer for toner over og under.
+  - **Notelinjer:** fem blå notelinjer som i G-nøkkel, med hjelpelinjer for toner over og under.
   - **Navn på linjer:** trykk i venstre felt på en linje. Hver del (Motiv, Kontrast, Slutt …) har sin farge;
     «Repetisjon» er samme farge, blekere, og «Variasjon» er samme farge, stripete.
     Delene (navn, farge, rekkefølge) endres under ⚙ → Visning.

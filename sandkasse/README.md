@@ -1,6 +1,7 @@
 # Piano sandkasse
 
 Her prøves nye ideer før noe eventuelt flyttes til `visuell/`. Kan endres eller fjernes når som helst.
+**Bygger på visuell 0.2** og mangler derfor det som kom i visuell 0.3/0.3.1. Oppdateres før neste test (se `IDEER.md`).
 Egne innstillinger, egne lagrede linjer/melodier og eget bildelager (rører ikke `visuell/` eller hovedsiden).
 
 **Åpne:** https://eldarskjorten.github.io/keyboard_customized/sandkasse/

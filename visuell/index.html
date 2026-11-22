@@ -659,7 +659,7 @@
 (() => {
   'use strict';
 
-  const VERSION = 'visuell 0.3 (bygger på 0.4)';
+  const VERSION = 'visuell 0.3.1 (bygger på 0.4)';
   const STORE_KEY = 'piano.settings.visuell.v1';
   const SOUND_DEFAULTS_KEY = 'piano.visuell.sounddefaults.v2'; // satt når standardlyd fra 0.3 er tatt i bruk
   const ROWS_KEY = 'piano.visuell.rows.v1';   // det som står i «Spill»-feltet
@@ -1757,6 +1757,8 @@
       return PC_NAME[pc(m)].includes('#') ? { pos: dia(m - 1), acc: '♯' } : { pos: dia(m + 1), acc: '♭' };
     }
     const STAFF_LO = dia(64), STAFF_HI = dia(77); // G-nøkkel: nederste linje E4, øverste linje F5
+    // Notelinjer: klar blå og tynne, så de ikke forveksles med de grå skillelinjene mellom linjene i feltet
+    const STAFF_INK = 'rgba(40,112,205,0.85)', STAFF_W = 1;
 
     // ----- Farger for deler -----
     const KIND_NAME = { r: 'Repetisjon', v: 'Variasjon' };
@@ -1997,7 +1999,7 @@
             }
           }
         } else if (S.dGrid === 'staff') {
-          g.strokeStyle = 'rgba(30,33,40,0.6)'; g.lineWidth = 1.2;
+          g.strokeStyle = STAFF_INK; g.lineWidth = STAFF_W;
           g.beginPath();
           for (let p = STAFF_LO; p <= STAFF_HI; p += 2) { const y = Math.round(yOf(top, p)) + 0.5; g.moveTo(gutter + 8, y); g.lineTo(W - 8, y); }
           g.stroke();
@@ -2029,22 +2031,8 @@
           g.fillText(String(i + 1), gutter / 2, top + rowH / 2);
         }
       }
-      if (!rows.length) {
-        const cx = gutter + (W - gutter) / 2;
-        const l1 = 'Spill, så vises tonene her.';
-        const l2 = 'Ny linje: knappen «Ny linje» eller en pause. Trykk i venstre felt for å sette navn.';
-        g.font = '400 13px -apple-system, system-ui, sans-serif';
-        const bw = Math.min(W - gutter - 12, Math.max(g.measureText(l2).width, 200) + 24);
-        g.fillStyle = 'rgba(253,252,248,0.92)';
-        g.fillRect(cx - bw / 2, H / 2 - 26, bw, 52);
-        g.fillStyle = '#9a9ea6';
-        g.textAlign = 'center'; g.textBaseline = 'middle';
-        g.font = '500 15px -apple-system, system-ui, sans-serif';
-        g.fillText(l1, cx, H / 2 - 11, W - gutter - 16);
-        g.font = '400 13px -apple-system, system-ui, sans-serif';
-        g.fillText(l2, cx, H / 2 + 12, W - gutter - 16);
-        return;
-      }
+      // Tomt felt: ingen forklaringstekst (publikum ser feltet)
+      if (!rows.length) return;
       rows.forEach((r, i) => {
         const top = i * rowH;
         for (const n of r.notes) {
@@ -2053,7 +2041,7 @@
           const y = yOf(top, sp.pos);
           if (S.dGrid === 'staff' && (sp.pos < STAFF_LO - 1 || sp.pos > STAFF_HI + 1)) {
             // hjelpelinjer (som på noter) for toner over eller under systemet
-            g.strokeStyle = 'rgba(30,33,40,0.6)'; g.lineWidth = 1.2;
+            g.strokeStyle = STAFF_INK; g.lineWidth = STAFF_W;
             g.beginPath();
             const from = sp.pos < STAFF_LO ? STAFF_LO - 2 : STAFF_HI + 2, dir = sp.pos < STAFF_LO ? -2 : 2;
             for (let q = from; dir < 0 ? q >= sp.pos : q <= sp.pos; q += dir) {
@@ -2281,8 +2269,7 @@
         if (on && el.getAttribute('src') !== images[j].url) el.src = images[j].url;
         el.hidden = !on;
       });
-      empty.textContent = many + (many === 1 ? ' bilde' : ' bilder') + ' klar. Trykk i feltet (eller ›) for å vise ett og ett.';
-      empty.hidden = idx >= 0;
+      empty.hidden = true; // ingen forklaringstekst for publikum; telleren viser «0 / n»
     }
     function go(d) {
       if (!images.length) return;

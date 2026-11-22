@@ -29,6 +29,7 @@ const KEY = 'piano.settings.visuell.v1';
   ok((await S()).sLen === 8, 'egne lydvalg etterpå blir stående (bare én gang)');
 
   const cdp = await ctx.newCDPSession(p);
+  await p.screenshot({ path: SH + 'v3-tomt.png' });
   let tid = 10;
   const tap = async (x, y, hold = 60) => {
     const id = tid++;
@@ -60,6 +61,8 @@ const KEY = 'piano.settings.visuell.v1';
   await play([60, 62, 64, 62, 67, 65, 64]); await p.waitForTimeout(1700);
   await play([70, 70, 69, 67]);
   await p.screenshot({ path: SH + 'v3-venstre.png' });
+  await btn('#dGridStaff');
+  await p.screenshot({ path: SH + 'v3-venstre-notelinjer.png' });
   await btn('#dGridKeys');
   await p.screenshot({ path: SH + 'v3-venstre-rutenett.png' });
   await settings(() => setRange('#rngDSize', 40));
@@ -120,7 +123,7 @@ const KEY = 'piano.settings.visuell.v1';
   ok(names === 'Lysbilde.001.png, Lysbilde.002.png, Lysbilde.003.png', 'nytt bilde legges til (erstatter ikke): ' + names);
   const shown = () => p.evaluate(() => [...document.querySelectorAll('#dSlots img')].filter((e) => !e.hidden).length);
   const count = () => p.evaluate(() => document.getElementById('dCount').textContent);
-  ok(await shown() === 0 && await count() === '0 / 3' && await p.evaluate(() => !document.getElementById('dEmpty').hidden), 'starter tomt: ' + await count());
+  ok(await shown() === 0 && await count() === '0 / 3' && await p.evaluate(() => document.getElementById('dEmpty').hidden), 'starter tomt, uten forklaringstekst: ' + await count());
   dp = await rect('#dStage');
   await tap(dp.x + dp.w / 2, dp.y + dp.h / 2);
   await tap(dp.x + dp.w / 2, dp.y + dp.h / 2);

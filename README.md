@@ -27,12 +27,15 @@ Et enkelt nettpiano med akkord-pads for iPad, laget for bruk i Stage Manager ved
 - Tomt felt langs hele toppen (med et lite håndtak): iPadOS flytter vinduet når du drar i de øverste ca. 30 punktene, og her ligger ingen knapper eller tangenter. Over Sustain er det også tomt, der iPadOS viser vindusknappene.
 - Tangentene blir ikke unaturlig lange i høye vinduer: overskytende høyde blir tomrom øverst.
 
+## Andre sider
+
+- **Piano visuell** (piano + pads + visningsfelt, brukes i presentasjoner): https://eldarskjorten.github.io/keyboard_customized/visuell/
+  – se `visuell/README.md`. Reservekopi av forrige versjon: `visuell-0.2/`.
+- **Sandkasse** (eksperimenter): https://eldarskjorten.github.io/keyboard_customized/sandkasse/
+
 ## Ideer til senere versjoner
 
-- Innstilling: gli med fingeren over tangentene gir nye toner (ja/nei). I dag gir bare nye trykk nye toner.
-- Grunntonen spilt på piano når en pad slås an (slik Audanika gjør).
-- Velge egne akkorder på padsene.
-- Pad-modus «hold» (lyd bare mens fingeren ligger på) som alternativ til av/på.
+Alle ideer (også for visuell og sandkasse) står samlet i [`IDEER.md`](IDEER.md). Utviklingsnotater: [`UTVIKLING.md`](UTVIKLING.md).
 
 ## Versjoner
 
